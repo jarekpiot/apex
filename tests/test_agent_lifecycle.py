@@ -32,6 +32,9 @@ from agents.sentiment.funding import SentimentFunding
 from agents.macro.regime import MacroRegime
 from agents.red_team.challenger import RedTeamChallenger
 from agents.meta.orchestrator import MetaOrchestrator
+from agents.ingestion.onchain_intel import OnChainIntelligence
+from agents.ingestion.macro_feed import MacroFeed
+from agents.ingestion.sentiment import SentimentScraper
 
 
 # ---------------------------------------------------------------------------
@@ -41,6 +44,9 @@ from agents.meta.orchestrator import MetaOrchestrator
 AGENT_SPECS: list[tuple[type, str, str, dict[str, Any]]] = [
     (MarketDataCollector,  "market_data",           "ingestion",   {}),
     (PlatformSpecialist,   "platform_specialist",   "ingestion",   {}),
+    (OnChainIntelligence,  "onchain_intel",         "ingestion",   {}),
+    (MacroFeed,            "macro_feed",            "ingestion",   {}),
+    (SentimentScraper,     "sentiment_scraper",     "ingestion",   {}),
     (ExecutionEngine,      "execution_engine",       "execution",   {"platform_specialist": None}),
     (PositionManager,      "position_manager",       "execution",   {"platform_specialist": None}),
     (RiskGuardian,         "risk_guardian",           "risk",        {}),

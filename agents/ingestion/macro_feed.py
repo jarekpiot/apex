@@ -13,7 +13,7 @@ Publishes to ``data:macro``, persists to ``macro_indicators``.
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone, time as dt_time
+from datetime import datetime, timedelta, timezone, time as dt_time
 from typing import Any
 
 import httpx

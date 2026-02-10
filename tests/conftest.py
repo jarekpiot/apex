@@ -120,6 +120,9 @@ class _FakeSession:
     def add(self, obj: Any) -> None:
         pass
 
+    def add_all(self, objs: Any) -> None:
+        pass
+
     async def commit(self) -> None:
         pass
 
