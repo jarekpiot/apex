@@ -55,6 +55,9 @@ def _create_agents(bus: MessageBus) -> list:
     """
     from agents.ingestion.market_data import MarketDataCollector
     from agents.ingestion.platform_specialist import PlatformSpecialist
+    from agents.ingestion.onchain_intel import OnChainIntelligence
+    from agents.ingestion.macro_feed import MacroFeed
+    from agents.ingestion.sentiment import SentimentScraper
     from agents.execution.engine import ExecutionEngine
     from agents.execution.position_manager import PositionManager
     from agents.risk.guardian import RiskGuardian
@@ -75,6 +78,9 @@ def _create_agents(bus: MessageBus) -> list:
     # --- Ingestion / platform layer (no dependencies) ---
     market_data = MarketDataCollector(bus=bus)
     platform = PlatformSpecialist(bus=bus)
+    onchain_intel = OnChainIntelligence(bus=bus)
+    macro_feed = MacroFeed(bus=bus)
+    sentiment_scraper = SentimentScraper(bus=bus)
 
     # --- Analysis layer (reads market data streams + DB) ---
     technical_analyst = TechnicalAnalyst(bus=bus)
@@ -106,6 +112,9 @@ def _create_agents(bus: MessageBus) -> list:
     implemented = {
         "market_data": market_data,
         "platform_specialist": platform,
+        "onchain_intel": onchain_intel,
+        "macro_feed": macro_feed,
+        "sentiment_scraper": sentiment_scraper,
         "technical_analyst": technical_analyst,
         "funding_arb": funding_arb,
         "fundamental_valuation": fundamental,

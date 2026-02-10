@@ -41,6 +41,12 @@ python-json-logger>=2.0,<3
 # --- WebSocket ---
 websockets>=14.0,<15
 
+# --- Sentiment & data ingestion ---
+asyncpraw>=7.7,<8
+vaderSentiment>=3.3,<4
+pytrends>=4.9,<5
+yfinance>=0.2,<1
+
 # --- Utilities ---
 orjson>=3.10,<4
 python-dotenv>=1.0,<2

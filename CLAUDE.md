@@ -8,7 +8,7 @@
 ## Project Overview
 
 APEX is an autonomous multi-agent trading system on Hyperliquid perpetual futures
-(crypto, equities, commodities, FX). 17 registered agents collaborate via Redis
+(crypto, equities, commodities, FX). 19 registered agents collaborate via Redis
 Streams, persist to TimescaleDB, and execute through the Hyperliquid SDK.
 
 **Repository:** `C:\apex\`
@@ -24,13 +24,14 @@ Streams, persist to TimescaleDB, and execute through the Hyperliquid SDK.
 | 1 — Foundation | ✅ DONE | Pydantic v2 models, Redis Streams bus, TimescaleDB schema, BaseAgent, settings, agent registry |
 | 2 — Hyperliquid | ✅ DONE | MarketDataCollector, PlatformSpecialist, ExecutionEngine, PositionManager |
 | 3 — Risk Gate | ✅ DONE | RiskGuardian, AnomalyDetector, HedgingEngine |
-| 4 — Orchestration | ⬜ TODO | MetaOrchestrator (consensus, signal aggregation, decision dispatch) |
-| 5 — TA Agents | ⬜ TODO | ta_trend, ta_mean_reversion, ta_momentum |
-| 6 — External Intel | ⬜ TODO | sentiment_social, sentiment_funding, macro_regime |
-| 7 — On-Chain | ⬜ TODO | fundamental_valuation, on_chain_flow |
-| 8 — Red Team | ⬜ TODO | red_team (Claude API adversarial challenger) |
+| 4 — Orchestration | ✅ DONE | MetaOrchestrator (consensus, signal aggregation, decision dispatch) |
+| 5 — TA Agents | ✅ DONE | TechnicalAnalyst, FundingRateArb |
+| 6 — External Intel | ✅ DONE | SentimentSocial, SentimentFunding, MacroRegime |
+| 7 — On-Chain | ✅ DONE | FundamentalValuation, OnChainFlow |
+| 8 — Red Team | ✅ DONE | RedTeamChallenger (heuristic adversarial challenges) |
+| 9 — Data Ingestion | ✅ DONE | OnChainIntelligence, MacroFeed, SentimentScraper |
 
-**7 of 17 agents implemented.** Next priority: meta_orchestrator (Sprint 4).
+**19 of 19 agents implemented.** All agents wired and ready.
 
 ---
 
@@ -58,6 +59,9 @@ PositionManager → portfolio:state (consumed by risk + hedging)
 | `platform:account_health` | PlatformSpecialist | ExecutionEngine, PositionManager |
 | `platform:execution_advisory` | PlatformSpecialist | ExecutionEngine, AnomalyDetector |
 | `platform:new_listing` | PlatformSpecialist | — |
+| `data:onchain` | OnChainIntelligence | (analysis agents) |
+| `data:macro` | MacroFeed | (analysis agents) |
+| `data:sentiment` | SentimentScraper | (analysis agents) |
 | `apex:signals` | Analysis agents | MetaOrchestrator |
 | `decisions:pending` | MetaOrchestrator, HedgingEngine | RiskGuardian |
 | `decisions:approved` | RiskGuardian | ExecutionEngine |
@@ -88,6 +92,9 @@ PositionManager → portfolio:state (consumed by risk + hedging)
 | `ExecutedTrade` | Fill confirmation with slippage, fees, execution mode |
 | `AnomalyAlert` | Market anomaly: type, severity, asset, value vs threshold |
 | `HedgeSuggestion` | Hedge proposal: asset, action, size, correlation |
+| `OnChainDataPoint` | Aggregated on-chain metrics: TVL, DEX vol, stablecoins, trending, unlocks |
+| `MacroDataPoint` | Macro indicators: FRED, yfinance, fear/greed, calendar |
+| `SentimentDataPoint` | Per-asset sentiment: Reddit, news, trends, LunarCrush |
 | `StopLevel` | Stop-loss config (fixed or trailing) |
 | `TakeProfitLevel` | Scaled exit target (price + close fraction) |
 | `NewListingAlert` | New perp detected on Hyperliquid |
@@ -151,7 +158,10 @@ C:\apex\
 │   ├── base_agent.py                  # Abstract base: start/stop/process lifecycle
 │   ├── ingestion/
 │   │   ├── market_data.py             # ✅ HL WebSocket → OHLCV (6 TFs) → Redis + DB
-│   │   └── platform_specialist.py     # ✅ 5 concurrent loops: assets/fees/margin/bridge/advisory
+│   │   ├── platform_specialist.py     # ✅ 5 concurrent loops: assets/fees/margin/bridge/advisory
+│   │   ├── onchain_intel.py          # ✅ 6 loops: TVL/DEX/stablecoins/trending/fear-greed/unlocks
+│   │   ├── macro_feed.py             # ✅ 4 loops: FRED/yfinance/fear-greed/calendar
+│   │   └── sentiment.py              # ✅ 4 loops: Reddit/CryptoPanic/Trends/LunarCrush
 │   ├── risk/
 │   │   ├── guardian.py                # ✅ 7-check gate: size/gross/net/corr/dd/weekly/asset-class
 │   │   ├── anomaly.py                 # ✅ 6 detectors: vol/price/book/funding/corr/latency
@@ -198,5 +208,5 @@ C:\apex\
 ```bash
 docker compose -f docker/docker-compose.yml up -d   # Start Redis + TimescaleDB
 pip install -r requirements.txt
-python main.py                                        # 7 agents READY, 10 pending
+python main.py                                        # 19 agents READY
 ```

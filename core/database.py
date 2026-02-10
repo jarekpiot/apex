@@ -193,3 +193,48 @@ class PerformanceMetricRow(Base):
     metric_name: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     metric_value: Mapped[float] = mapped_column(Float, nullable=False)
     metadata_: Mapped[dict] = mapped_column("metadata", JSONB, default=dict)
+
+
+# ---------------------------------------------------------------------------
+# Data ingestion tables
+# ---------------------------------------------------------------------------
+
+class OnChainMetricRow(Base):
+    __tablename__ = "onchain_metrics"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ts: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), index=True,
+    )
+    source: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    metric_name: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    metric_value: Mapped[float] = mapped_column(Float, nullable=False)
+    asset: Mapped[str] = mapped_column(String(64), nullable=True, default="")
+    metadata_: Mapped[dict] = mapped_column("metadata", JSONB, default=dict)
+
+
+class MacroIndicatorRow(Base):
+    __tablename__ = "macro_indicators"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ts: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), index=True,
+    )
+    source: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    indicator_name: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    indicator_value: Mapped[float] = mapped_column(Float, nullable=False)
+    metadata_: Mapped[dict] = mapped_column("metadata", JSONB, default=dict)
+
+
+class SentimentScoreRow(Base):
+    __tablename__ = "sentiment_scores"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ts: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), index=True,
+    )
+    source: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    asset: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    score: Mapped[float] = mapped_column(Float, nullable=False)
+    post_count: Mapped[int] = mapped_column(Integer, default=0)
+    metadata_: Mapped[dict] = mapped_column("metadata", JSONB, default=dict)

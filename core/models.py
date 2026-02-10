@@ -361,3 +361,74 @@ class HedgeSuggestion(BaseModel):
     current_net_exposure: float = 0.0
     target_net_exposure: float = 0.0
     correlation_to_portfolio: float = 0.0
+
+
+# ---------------------------------------------------------------------------
+# Data ingestion models
+# ---------------------------------------------------------------------------
+
+class OnChainDataPoint(BaseModel):
+    """Aggregated on-chain metrics from multiple providers."""
+
+    timestamp: datetime = Field(default_factory=_utcnow)
+    source: str = "onchain_intel"
+    protocol_tvls: dict[str, float] = Field(default_factory=dict)
+    chain_tvls: dict[str, float] = Field(default_factory=dict)
+    total_stablecoin_mcap: float = 0.0
+    stablecoin_breakdown: dict[str, float] = Field(default_factory=dict)
+    dex_volumes_24h: dict[str, float] = Field(default_factory=dict)
+    total_dex_volume_24h: float = 0.0
+    bridge_volumes_24h: dict[str, float] = Field(default_factory=dict)
+    trending_tokens: list[dict[str, Any]] = Field(default_factory=list)
+    market_cap_changes: dict[str, float] = Field(default_factory=dict)
+    volume_spikes: dict[str, float] = Field(default_factory=dict)
+    fear_greed_index: int = 0
+    fear_greed_label: str = ""
+    upcoming_unlocks: list[dict[str, Any]] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class MacroDataPoint(BaseModel):
+    """Aggregated macro-economic indicators."""
+
+    timestamp: datetime = Field(default_factory=_utcnow)
+    source: str = "macro_feed"
+    fed_funds_rate: float | None = None
+    cpi_yoy: float | None = None
+    m2_money_supply: float | None = None
+    us10y_yield: float | None = None
+    us2y_yield: float | None = None
+    yield_curve_spread: float | None = None
+    dxy_index: float | None = None
+    spy_price: float | None = None
+    qqq_price: float | None = None
+    gld_price: float | None = None
+    uso_price: float | None = None
+    dxy_price: float | None = None
+    vix_price: float | None = None
+    crypto_fear_greed: int = 0
+    upcoming_events: list[dict[str, Any]] = Field(default_factory=list)
+    us_market_open: bool = False
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class SentimentDataPoint(BaseModel):
+    """Per-asset sentiment aggregation from multiple sources."""
+
+    timestamp: datetime = Field(default_factory=_utcnow)
+    source: str = "sentiment_scraper"
+    asset: str = ""
+    reddit_post_count: int = 0
+    reddit_sentiment_score: float = 0.0
+    reddit_bullish_pct: float = 0.0
+    news_count: int = 0
+    news_sentiment_score: float = 0.0
+    news_positive_pct: float = 0.0
+    news_negative_pct: float = 0.0
+    google_trends_interest: float = 0.0
+    google_trends_change_pct: float = 0.0
+    galaxy_score: float = 0.0
+    social_volume: float = 0.0
+    social_sentiment: float = 0.0
+    composite_sentiment: float = 0.0
+    metadata: dict[str, Any] = Field(default_factory=dict)

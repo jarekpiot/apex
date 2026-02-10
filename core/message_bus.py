@@ -45,6 +45,11 @@ STREAM_RISK_ANOMALY = "risk:anomaly"
 STREAM_SIGNALS_TECHNICAL = "signals:technical"
 STREAM_SIGNALS_FUNDING_ARB = "signals:funding_arb"
 
+# Data ingestion streams.
+STREAM_DATA_ONCHAIN = "data:onchain"
+STREAM_DATA_MACRO = "data:macro"
+STREAM_DATA_SENTIMENT = "data:sentiment"
+
 # How long to block on XREADGROUP when no new messages arrive (ms).
 _DEFAULT_BLOCK_MS = 5_000
 _DEFAULT_BATCH = 10

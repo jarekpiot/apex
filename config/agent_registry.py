@@ -153,6 +153,27 @@ AGENT_REGISTRY: dict[str, AgentEntry] = {
             default_weight=0.0,
             status=AgentStatus.ACTIVE,
         ),
+        AgentEntry(
+            agent_id="onchain_intel",
+            agent_type=AgentType.INGESTION,
+            description="On-chain data aggregator — TVL, DEX volume, stablecoins, trending, fear/greed, token unlocks.",
+            default_weight=0.0,
+            status=AgentStatus.ACTIVE,
+        ),
+        AgentEntry(
+            agent_id="macro_feed",
+            agent_type=AgentType.INGESTION,
+            description="Macro data feed — FRED, Yahoo Finance, economic calendar, fear/greed.",
+            default_weight=0.0,
+            status=AgentStatus.ACTIVE,
+        ),
+        AgentEntry(
+            agent_id="sentiment_scraper",
+            agent_type=AgentType.INGESTION,
+            description="Sentiment scraper — Reddit, CryptoPanic, Google Trends, LunarCrush.",
+            default_weight=0.0,
+            status=AgentStatus.ACTIVE,
+        ),
 
         # ---- Execution ----
         AgentEntry(

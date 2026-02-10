@@ -134,3 +134,65 @@ SELECT create_hypertable('performance_metrics', 'ts', if_not_exists => TRUE);
 
 CREATE INDEX IF NOT EXISTS idx_perf_metric_ts
     ON performance_metrics (metric_name, ts DESC);
+
+-- --------------------------------------------------------------------------
+-- On-chain metrics (hypertable)
+-- --------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS onchain_metrics (
+    id              BIGSERIAL       NOT NULL,
+    ts              TIMESTAMPTZ     NOT NULL DEFAULT now(),
+    source          VARCHAR(64)     NOT NULL,
+    metric_name     VARCHAR(128)    NOT NULL,
+    metric_value    DOUBLE PRECISION NOT NULL,
+    asset           VARCHAR(64)     DEFAULT '',
+    metadata        JSONB           DEFAULT '{}'::jsonb,
+    PRIMARY KEY (id, ts)
+);
+
+SELECT create_hypertable('onchain_metrics', 'ts', if_not_exists => TRUE);
+
+CREATE INDEX IF NOT EXISTS idx_onchain_source_ts
+    ON onchain_metrics (source, ts DESC);
+
+CREATE INDEX IF NOT EXISTS idx_onchain_metric_ts
+    ON onchain_metrics (metric_name, ts DESC);
+
+-- --------------------------------------------------------------------------
+-- Macro indicators (hypertable)
+-- --------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS macro_indicators (
+    id              BIGSERIAL       NOT NULL,
+    ts              TIMESTAMPTZ     NOT NULL DEFAULT now(),
+    source          VARCHAR(64)     NOT NULL,
+    indicator_name  VARCHAR(128)    NOT NULL,
+    indicator_value DOUBLE PRECISION NOT NULL,
+    metadata        JSONB           DEFAULT '{}'::jsonb,
+    PRIMARY KEY (id, ts)
+);
+
+SELECT create_hypertable('macro_indicators', 'ts', if_not_exists => TRUE);
+
+CREATE INDEX IF NOT EXISTS idx_macro_indicator_ts
+    ON macro_indicators (indicator_name, ts DESC);
+
+-- --------------------------------------------------------------------------
+-- Sentiment scores (hypertable)
+-- --------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS sentiment_scores (
+    id              BIGSERIAL       NOT NULL,
+    ts              TIMESTAMPTZ     NOT NULL DEFAULT now(),
+    source          VARCHAR(64)     NOT NULL,
+    asset           VARCHAR(32)     NOT NULL,
+    score           DOUBLE PRECISION NOT NULL,
+    post_count      INTEGER         DEFAULT 0,
+    metadata        JSONB           DEFAULT '{}'::jsonb,
+    PRIMARY KEY (id, ts)
+);
+
+SELECT create_hypertable('sentiment_scores', 'ts', if_not_exists => TRUE);
+
+CREATE INDEX IF NOT EXISTS idx_sentiment_source_ts
+    ON sentiment_scores (source, ts DESC);
+
+CREATE INDEX IF NOT EXISTS idx_sentiment_asset_ts
+    ON sentiment_scores (asset, ts DESC);

@@ -262,6 +262,29 @@ class Settings(BaseSettings):
         description="Macro regime scan interval in seconds (30 min).",
     )
 
+    # -- Data ingestion: On-Chain Intelligence --------------------------------
+    onchain_tvl_interval: int = Field(default=900, description="TVL poll interval (seconds).")
+    onchain_dex_interval: int = Field(default=600, description="DEX volume poll interval (seconds).")
+    onchain_stablecoin_interval: int = Field(default=3600, description="Stablecoin poll interval (seconds).")
+    onchain_trending_interval: int = Field(default=300, description="Trending tokens poll interval (seconds).")
+    onchain_fear_greed_interval: int = Field(default=3600, description="Fear & Greed poll interval (seconds).")
+    onchain_unlocks_interval: int = Field(default=3600, description="Token unlocks poll interval (seconds).")
+
+    # -- Data ingestion: Macro Feed -------------------------------------------
+    macro_feed_fred_interval: int = Field(default=3600, description="FRED data poll interval (seconds).")
+    macro_feed_yfinance_interval: int = Field(default=60, description="Yahoo Finance poll interval (seconds).")
+    macro_feed_calendar_interval: int = Field(default=3600, description="Economic calendar poll interval (seconds).")
+
+    # -- Data ingestion: Sentiment Scraper ------------------------------------
+    sentiment_reddit_interval: int = Field(default=300, description="Reddit scrape interval (seconds).")
+    sentiment_cryptopanic_interval: int = Field(default=300, description="CryptoPanic poll interval (seconds).")
+    sentiment_trends_interval: int = Field(default=1800, description="Google Trends poll interval (seconds).")
+    sentiment_lunarcrush_interval: int = Field(default=600, description="LunarCrush poll interval (seconds).")
+
+    # -- Data ingestion: API keys ---------------------------------------------
+    cryptopanic_api_key: SecretStr = SecretStr("")
+    lunarcrush_api_key: SecretStr = SecretStr("")
+
     # -- Platform polling intervals (seconds) ---------------------------------
     account_health_interval: float = 10.0
     asset_registry_interval: float = 300.0
