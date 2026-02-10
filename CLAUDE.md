@@ -146,7 +146,7 @@ C:\apex\
 │
 ├── config/
 │   ├── settings.py                    # Pydantic BaseSettings (all env + risk params)
-│   └── agent_registry.py             # 17 agents: id, type, weight, status
+│   └── agent_registry.py             # 19 agents: id, type, weight, status
 │
 ├── core/
 │   ├── models.py                      # All shared Pydantic v2 domain models
@@ -166,12 +166,32 @@ C:\apex\
 │   │   ├── guardian.py                # ✅ 7-check gate: size/gross/net/corr/dd/weekly/asset-class
 │   │   ├── anomaly.py                 # ✅ 6 detectors: vol/price/book/funding/corr/latency
 │   │   └── hedging.py                 # ✅ Auto-hedge + tail-risk (VIX proxy)
+│   ├── analysis/
+│   │   ├── technical.py              # ✅ Multi-TF TA (RSI, MACD, BB, ADX, EMAs, S/R)
+│   │   └── funding_arb.py           # ✅ Cross-exchange funding rate arb scanner
+│   ├── fundamental/
+│   │   └── valuation.py             # ✅ NVT, TVL ratio, CoinGecko + DefiLlama
+│   ├── on_chain/
+│   │   └── flow.py                  # ✅ TVL momentum, stablecoin capital flows
+│   ├── sentiment/
+│   │   ├── social.py                # ✅ CoinGecko votes + NewsAPI keyword scoring
+│   │   └── funding.py               # ✅ Contrarian funding/OI sentiment
+│   ├── macro/
+│   │   └── regime.py                # ✅ FRED → risk_on/risk_off/neutral classification
+│   ├── red_team/
+│   │   └── challenger.py            # ✅ 6 heuristic challenges on decisions:pending
+│   ├── meta/
+│   │   └── orchestrator.py          # ✅ Signal aggregation, consensus voting, dispatch
 │   └── execution/
 │       ├── engine.py                  # ✅ MARKET/LIMIT/TWAP/ICEBERG, paper-trade default
 │       └── position_manager.py        # ✅ Trailing stops, scaled TPs, circuit breaker
 │
+├── tests/                             # 386 tests (pytest + pytest-asyncio)
+│   ├── conftest.py                   # MockMessageBus, FakeSession, model factories
+│   └── test_*.py                     # Per-agent + lifecycle + model tests
+│
 ├── data/
-│   └── schema.sql                     # TimescaleDB DDL — 6 hypertables
+│   └── schema.sql                     # TimescaleDB DDL — 9 hypertables
 │
 └── docker/
     └── docker-compose.yml             # Redis 7 + TimescaleDB (pg16)
@@ -189,6 +209,9 @@ C:\apex\
 - **Loose coupling:** Risk agents communicate via streams only — no direct references.
 - **Correlation:** RiskGuardian uses `_PriceHistory` with hourly sampling for 14d Pearson.
 - **Anomaly stats:** `_RollingStats` (Welford's online algorithm) for efficient mean/variance.
+- **Data ingestion:** OnChainIntelligence, MacroFeed, SentimentScraper — centralised external data with per-source exponential backoff (1s base, 60s cap).
+- **Sync libs in async:** `yfinance` and `pytrends` wrapped via `loop.run_in_executor(None, sync_fn)`.
+- **NLP:** VADER `SentimentIntensityAnalyzer` for Reddit + news headline scoring.
 
 ---
 
@@ -209,4 +232,5 @@ C:\apex\
 docker compose -f docker/docker-compose.yml up -d   # Start Redis + TimescaleDB
 pip install -r requirements.txt
 python main.py                                        # 19 agents READY
+python -m pytest tests/ -v                             # 386 tests
 ```
