@@ -68,6 +68,7 @@ from core.models import (
     PositionReview,
     PriceUpdate,
     RedTeamChallengeV2,
+    RedTeamRecommendation,
     RegimeState,
     StrategyPriority,
     Timeframe,
