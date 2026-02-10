@@ -49,6 +49,13 @@ STREAM_SIGNALS_FUNDING_ARB = "signals:funding_arb"
 STREAM_DATA_ONCHAIN = "data:onchain"
 STREAM_DATA_MACRO = "data:macro"
 STREAM_DATA_SENTIMENT = "data:sentiment"
+STREAM_DATA_REGIME = "data:regime"
+
+# CIO / decision layer streams.
+STREAM_CIO_RESEARCH_TASKS = "cio:research_tasks"
+STREAM_CIO_RESEARCH_RESULTS = "cio:research_results"
+STREAM_CIO_SIGNAL_MATRIX = "cio:signal_matrix"
+STREAM_CIO_PRIORITIES = "cio:priorities"
 
 # How long to block on XREADGROUP when no new messages arrive (ms).
 _DEFAULT_BLOCK_MS = 5_000

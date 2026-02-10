@@ -8,7 +8,7 @@
 ## Project Overview
 
 APEX is an autonomous multi-agent trading system on Hyperliquid perpetual futures
-(crypto, equities, commodities, FX). 19 registered agents collaborate via Redis
+(crypto, equities, commodities, FX). 24 registered agents collaborate via Redis
 Streams, persist to TimescaleDB, and execute through the Hyperliquid SDK.
 
 **Repository:** `C:\apex\`
@@ -30,22 +30,30 @@ Streams, persist to TimescaleDB, and execute through the Hyperliquid SDK.
 | 7 — On-Chain | ✅ DONE | FundamentalValuation, OnChainFlow |
 | 8 — Red Team | ✅ DONE | RedTeamChallenger (heuristic adversarial challenges) |
 | 9 — Data Ingestion | ✅ DONE | OnChainIntelligence, MacroFeed, SentimentScraper |
+| 10 — CIO System | ✅ DONE | ChiefInvestmentOfficer, SignalAggregator, RedTeamStrategist, PortfolioAllocator, RegimeClassifier |
 
-**19 of 19 agents implemented.** All agents wired and ready.
+**24 of 24 agents implemented.** All agents wired and ready.
 
 ---
 
 ## Decision Flow (end-to-end)
 
 ```
-Analysis agents emit AgentSignal → apex:signals
-  → MetaOrchestrator (weighted consensus) → decisions:pending
-    → RiskGuardian (7-check pipeline) → decisions:approved → ExecutionEngine → trades:executed
-                                        → decisions:rejected (with veto_reason)
+Data ingestion → data:onchain / data:macro / data:sentiment / data:regime
+  → SignalAggregator compiles real-time SignalMatrix → cio:signal_matrix
+    → CIO (Claude reasoning) generates InvestmentThesis
+      → IC 5-phase debate (experts + RedTeamStrategist + PortfolioAllocator)
+        → CIO decision → decisions:pending
+          → RiskGuardian (7-check pipeline) → decisions:approved → ExecutionEngine → trades:executed
+                                              → decisions:rejected (with veto_reason)
+
+Legacy path (parallel):
+  Analysis agents → apex:signals → MetaOrchestrator (weighted consensus) → decisions:pending
 
 AnomalyDetector → risk:anomaly → RiskGuardian enters defensive mode
 HedgingEngine → decisions:pending (goes through full risk pipeline)
-PositionManager → portfolio:state (consumed by risk + hedging)
+PositionManager → portfolio:state (consumed by risk + hedging + CIO)
+RegimeClassifier → data:regime (HMM-based 5-state classification)
 ```
 
 ---
@@ -62,8 +70,13 @@ PositionManager → portfolio:state (consumed by risk + hedging)
 | `data:onchain` | OnChainIntelligence | (analysis agents) |
 | `data:macro` | MacroFeed | (analysis agents) |
 | `data:sentiment` | SentimentScraper | (analysis agents) |
-| `apex:signals` | Analysis agents | MetaOrchestrator |
-| `decisions:pending` | MetaOrchestrator, HedgingEngine | RiskGuardian |
+| `data:regime` | RegimeClassifier | CIO, SignalAggregator |
+| `cio:signal_matrix` | SignalAggregator | CIO |
+| `cio:research_tasks` | CIO | (research agents) |
+| `cio:research_results` | (research agents) | CIO |
+| `cio:priorities` | CIO | (all agents) |
+| `apex:signals` | Analysis agents | MetaOrchestrator, SignalAggregator |
+| `decisions:pending` | MetaOrchestrator, CIO, HedgingEngine | RiskGuardian |
 | `decisions:approved` | RiskGuardian | ExecutionEngine |
 | `decisions:rejected` | RiskGuardian | (audit) |
 | `trades:executed` | ExecutionEngine | PositionManager |
@@ -95,11 +108,22 @@ PositionManager → portfolio:state (consumed by risk + hedging)
 | `OnChainDataPoint` | Aggregated on-chain metrics: TVL, DEX vol, stablecoins, trending, unlocks |
 | `MacroDataPoint` | Macro indicators: FRED, yfinance, fear/greed, calendar |
 | `SentimentDataPoint` | Per-asset sentiment: Reddit, news, trends, LunarCrush |
+| `RegimeState` | HMM regime classification (5 states) with confidence |
+| `MarketBrief` | CIO's synthesised market overview (themes, opportunities, risks) |
+| `InvestmentThesis` | Full trade thesis: edge, catalyst, risk factors, invalidation |
+| `ExpertOpinion` | Expert review during IC debate |
+| `RedTeamChallengeV2` | LLM-powered adversarial challenge (7 categories) |
+| `TradeProposal` | Kelly-criterion sized trade proposal |
+| `InvestmentCommitteeRecord` | Master IC debate record (thesis + opinions + challenges + decision) |
+| `StrategyPriority` | CIO's broadcast strategic priorities |
+| `DailySummary` | End-of-day performance summary with agent grades |
+| `PositionReview` | CIO's review verdict for open positions |
+| `ResearchTask` / `ResearchResult` | CIO-to-agent research assignment and response |
 | `StopLevel` | Stop-loss config (fixed or trailing) |
 | `TakeProfitLevel` | Scaled exit target (price + close fraction) |
 | `NewListingAlert` | New perp detected on Hyperliquid |
 
-**Enums:** Direction, TradeAction, Timeframe, ExecutionMode, AlertSeverity, AssetClass, AnomalyType, ChallengeType, RedTeamRecommendation
+**Enums:** Direction, TradeAction, Timeframe, ExecutionMode, AlertSeverity, AssetClass, AnomalyType, ChallengeType, RedTeamRecommendation, MarketRegime, ICDecision, ChallengeCategory, PositionAction
 
 ---
 
@@ -146,7 +170,7 @@ C:\apex\
 │
 ├── config/
 │   ├── settings.py                    # Pydantic BaseSettings (all env + risk params)
-│   └── agent_registry.py             # 19 agents: id, type, weight, status
+│   └── agent_registry.py             # 24 agents: id, type, weight, status
 │
 ├── core/
 │   ├── models.py                      # All shared Pydantic v2 domain models
@@ -178,6 +202,12 @@ C:\apex\
 │   │   └── funding.py               # ✅ Contrarian funding/OI sentiment
 │   ├── macro/
 │   │   └── regime.py                # ✅ FRED → risk_on/risk_off/neutral classification
+│   ├── decision/
+│   │   ├── cio.py                  # ✅ CIO: Claude reasoning, IC debates, portfolio review
+│   │   ├── signal_aggregator.py    # ✅ Real-time signal matrix for CIO
+│   │   ├── red_team.py             # ✅ LLM adversarial challenger (Claude Sonnet)
+│   │   ├── portfolio_allocator.py  # ✅ Kelly criterion sizing (Half-Kelly)
+│   │   └── regime_classifier.py    # ✅ HMM 5-state regime detection
 │   ├── red_team/
 │   │   └── challenger.py            # ✅ 6 heuristic challenges on decisions:pending
 │   ├── meta/
@@ -186,12 +216,12 @@ C:\apex\
 │       ├── engine.py                  # ✅ MARKET/LIMIT/TWAP/ICEBERG, paper-trade default
 │       └── position_manager.py        # ✅ Trailing stops, scaled TPs, circuit breaker
 │
-├── tests/                             # 386 tests (pytest + pytest-asyncio)
+├── tests/                             # 411 tests (pytest + pytest-asyncio)
 │   ├── conftest.py                   # MockMessageBus, FakeSession, model factories
 │   └── test_*.py                     # Per-agent + lifecycle + model tests
 │
 ├── data/
-│   └── schema.sql                     # TimescaleDB DDL — 9 hypertables
+│   └── schema.sql                     # TimescaleDB DDL — 11 hypertables
 │
 └── docker/
     └── docker-compose.yml             # Redis 7 + TimescaleDB (pg16)
@@ -210,8 +240,12 @@ C:\apex\
 - **Correlation:** RiskGuardian uses `_PriceHistory` with hourly sampling for 14d Pearson.
 - **Anomaly stats:** `_RollingStats` (Welford's online algorithm) for efficient mean/variance.
 - **Data ingestion:** OnChainIntelligence, MacroFeed, SentimentScraper — centralised external data with per-source exponential backoff (1s base, 60s cap).
-- **Sync libs in async:** `yfinance` and `pytrends` wrapped via `loop.run_in_executor(None, sync_fn)`.
+- **Sync libs in async:** `yfinance`, `pytrends`, and `hmmlearn` wrapped via `loop.run_in_executor(None, sync_fn)`.
 - **NLP:** VADER `SentimentIntensityAnalyzer` for Reddit + news headline scoring.
+- **CIO system:** Claude-powered reasoning (configurable model). 5-phase IC debates. RedTeamStrategist uses separate model context from CIO (adversarial). PortfolioAllocator uses Kelly criterion (Half-Kelly default). RegimeClassifier uses Gaussian HMM (hmmlearn).
+- **CIO wiring:** CIO takes `red_team=` and `allocator=` constructor args for direct method calls during IC debates.
+- **IC debate flow:** Thesis → Expert Review (signal matrix) → Red Team Challenge → CIO Deliberation → Position Sizing. 3 consecutive RT overrides → human review required.
+- **CIO cannot override:** RiskGuardian or PlatformSpecialist. All CIO decisions go through the standard risk pipeline via `decisions:pending`.
 
 ---
 
@@ -231,6 +265,6 @@ C:\apex\
 ```bash
 docker compose -f docker/docker-compose.yml up -d   # Start Redis + TimescaleDB
 pip install -r requirements.txt
-python main.py                                        # 19 agents READY
-python -m pytest tests/ -v                             # 386 tests
+python main.py                                        # 24 agents READY
+python -m pytest tests/ -v                             # 411 tests
 ```

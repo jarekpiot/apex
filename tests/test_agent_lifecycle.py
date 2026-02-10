@@ -1,5 +1,5 @@
 """
-Parametrized lifecycle tests for all 16 APEX agents.
+Parametrized lifecycle tests for all 24 APEX agents.
 
 Validates that every agent:
   1. Instantiates correctly with the expected agent_id, agent_type, and bus.
@@ -35,6 +35,11 @@ from agents.meta.orchestrator import MetaOrchestrator
 from agents.ingestion.onchain_intel import OnChainIntelligence
 from agents.ingestion.macro_feed import MacroFeed
 from agents.ingestion.sentiment import SentimentScraper
+from agents.decision.cio import ChiefInvestmentOfficer
+from agents.decision.signal_aggregator import SignalAggregator
+from agents.decision.red_team import RedTeamStrategist
+from agents.decision.portfolio_allocator import PortfolioAllocator
+from agents.decision.regime_classifier import RegimeClassifier
 
 
 # ---------------------------------------------------------------------------
@@ -60,6 +65,11 @@ AGENT_SPECS: list[tuple[type, str, str, dict[str, Any]]] = [
     (SentimentFunding,     "sentiment_funding",       "sentiment",   {}),
     (MacroRegime,          "macro_regime",            "macro",       {}),
     (RedTeamChallenger,    "red_team",                "red_team",    {}),
+    (ChiefInvestmentOfficer, "cio",                  "decision",    {}),
+    (SignalAggregator,     "signal_aggregator",       "decision",    {}),
+    (RedTeamStrategist,    "red_team_strategist",     "decision",    {}),
+    (PortfolioAllocator,   "portfolio_allocator",     "decision",    {}),
+    (RegimeClassifier,     "regime_classifier",       "decision",    {}),
     (MetaOrchestrator,     "meta_orchestrator",       "meta",        {}),
 ]
 

@@ -285,6 +285,21 @@ class Settings(BaseSettings):
     cryptopanic_api_key: SecretStr = SecretStr("")
     lunarcrush_api_key: SecretStr = SecretStr("")
 
+    # -- CIO / Decision layer -------------------------------------------------
+    cio_briefing_interval: int = Field(default=300, description="CIO briefing phase interval (seconds).")
+    cio_portfolio_review_interval: int = Field(default=120, description="CIO portfolio review interval (seconds).")
+    cio_priority_interval: int = Field(default=600, description="CIO strategy priority update interval (seconds).")
+    cio_daily_summary_hour: int = Field(default=0, description="UTC hour for daily summary generation.")
+    cio_research_timeout: int = Field(default=120, description="Research task timeout (seconds).")
+    cio_max_concurrent_theses: int = Field(default=3, description="Max IC debates running concurrently.")
+    cio_red_team_override_limit: int = Field(default=3, description="Consecutive RT overrides before human review.")
+    cio_model: str = Field(default="claude-sonnet-4-5-20250929", description="Claude model for CIO reasoning.")
+    cio_red_team_model: str = Field(default="claude-sonnet-4-5-20250929", description="Claude model for Red Team.")
+    kelly_fraction: float = Field(default=0.5, description="Kelly fraction (0.5 = half-Kelly).")
+    signal_matrix_interval: int = Field(default=30, description="Signal matrix publish interval (seconds).")
+    regime_classifier_interval: int = Field(default=300, description="Regime classification interval (seconds).")
+    regime_hmm_n_states: int = Field(default=5, description="Number of HMM hidden states for regime detection.")
+
     # -- Platform polling intervals (seconds) ---------------------------------
     account_health_interval: float = 10.0
     asset_registry_interval: float = 300.0

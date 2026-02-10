@@ -24,6 +24,7 @@ class AgentType(StrEnum):
     RED_TEAM = "red_team"
     EXECUTION = "execution"
     INGESTION = "ingestion"
+    DECISION = "decision"
     META = "meta"
 
 
@@ -187,6 +188,43 @@ AGENT_REGISTRY: dict[str, AgentEntry] = {
             agent_id="position_manager",
             agent_type=AgentType.EXECUTION,
             description="Position tracking, stop/TP management, portfolio state, circuit breaker.",
+            default_weight=0.0,
+            status=AgentStatus.ACTIVE,
+        ),
+
+        # ---- Decision / CIO layer ----
+        AgentEntry(
+            agent_id="cio",
+            agent_type=AgentType.DECISION,
+            description="Chief Investment Officer — top-level orchestrator with Claude reasoning.",
+            default_weight=0.0,
+            status=AgentStatus.ACTIVE,
+        ),
+        AgentEntry(
+            agent_id="signal_aggregator",
+            agent_type=AgentType.DECISION,
+            description="Real-time signal matrix builder — CIO's inbox with dedup and urgency.",
+            default_weight=0.0,
+            status=AgentStatus.ACTIVE,
+        ),
+        AgentEntry(
+            agent_id="red_team_strategist",
+            agent_type=AgentType.DECISION,
+            description="LLM-powered adversarial challenger for IC debates (Claude Sonnet).",
+            default_weight=0.0,
+            status=AgentStatus.ACTIVE,
+        ),
+        AgentEntry(
+            agent_id="portfolio_allocator",
+            agent_type=AgentType.DECISION,
+            description="Kelly criterion position sizing with regime/drawdown adjustments.",
+            default_weight=0.0,
+            status=AgentStatus.ACTIVE,
+        ),
+        AgentEntry(
+            agent_id="regime_classifier",
+            agent_type=AgentType.DECISION,
+            description="HMM-based market regime classification (5 states).",
             default_weight=0.0,
             status=AgentStatus.ACTIVE,
         ),

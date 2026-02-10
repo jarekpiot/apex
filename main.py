@@ -71,6 +71,11 @@ def _create_agents(bus: MessageBus) -> list:
     from agents.sentiment.funding import SentimentFunding
     from agents.macro.regime import MacroRegime
     from agents.red_team.challenger import RedTeamChallenger
+    from agents.decision.cio import ChiefInvestmentOfficer
+    from agents.decision.signal_aggregator import SignalAggregator
+    from agents.decision.red_team import RedTeamStrategist
+    from agents.decision.portfolio_allocator import PortfolioAllocator
+    from agents.decision.regime_classifier import RegimeClassifier
     from agents.meta.orchestrator import MetaOrchestrator
 
     agents: list = []
@@ -92,6 +97,15 @@ def _create_agents(bus: MessageBus) -> list:
     sentiment_social = SentimentSocial(bus=bus)
     sentiment_funding = SentimentFunding(bus=bus)
     macro_regime = MacroRegime(bus=bus)
+
+    # --- Decision / CIO layer ---
+    regime_classifier = RegimeClassifier(bus=bus)
+    signal_aggregator = SignalAggregator(bus=bus)
+    allocator = PortfolioAllocator(bus=bus)
+    rt_strategist = RedTeamStrategist(bus=bus)
+    cio = ChiefInvestmentOfficer(
+        bus=bus, red_team=rt_strategist, allocator=allocator,
+    )
 
     # --- Meta / ensemble layer (aggregates signals → decisions) ---
     orchestrator = MetaOrchestrator(bus=bus)
@@ -122,6 +136,11 @@ def _create_agents(bus: MessageBus) -> list:
         "sentiment_social": sentiment_social,
         "sentiment_funding": sentiment_funding,
         "macro_regime": macro_regime,
+        "cio": cio,
+        "signal_aggregator": signal_aggregator,
+        "red_team_strategist": rt_strategist,
+        "portfolio_allocator": allocator,
+        "regime_classifier": regime_classifier,
         "meta_orchestrator": orchestrator,
         "risk_guardian": risk_guardian,
         "anomaly_detector": anomaly_detector,

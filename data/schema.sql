@@ -196,3 +196,39 @@ CREATE INDEX IF NOT EXISTS idx_sentiment_source_ts
 
 CREATE INDEX IF NOT EXISTS idx_sentiment_asset_ts
     ON sentiment_scores (asset, ts DESC);
+
+-- --------------------------------------------------------------------------
+-- Investment Committee records (hypertable)
+-- --------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ic_records (
+    id              BIGSERIAL       NOT NULL,
+    record_id       VARCHAR(64)     NOT NULL UNIQUE,
+    ts              TIMESTAMPTZ     NOT NULL DEFAULT now(),
+    asset           VARCHAR(32)     NOT NULL,
+    decision        VARCHAR(16)     NOT NULL,
+    thesis          JSONB           DEFAULT '{}'::jsonb,
+    debate          JSONB           DEFAULT '{}'::jsonb,
+    metadata        JSONB           DEFAULT '{}'::jsonb,
+    PRIMARY KEY (id, ts)
+);
+
+SELECT create_hypertable('ic_records', 'ts', if_not_exists => TRUE);
+
+CREATE INDEX IF NOT EXISTS idx_ic_asset_ts
+    ON ic_records (asset, ts DESC);
+
+-- --------------------------------------------------------------------------
+-- Daily summaries (hypertable)
+-- --------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS daily_summaries (
+    id              BIGSERIAL       NOT NULL,
+    ts              TIMESTAMPTZ     NOT NULL DEFAULT now(),
+    date            VARCHAR(10)     NOT NULL UNIQUE,
+    total_pnl       DOUBLE PRECISION DEFAULT 0.0,
+    trades_executed INTEGER         DEFAULT 0,
+    summary         JSONB           DEFAULT '{}'::jsonb,
+    metadata        JSONB           DEFAULT '{}'::jsonb,
+    PRIMARY KEY (id, ts)
+);
+
+SELECT create_hypertable('daily_summaries', 'ts', if_not_exists => TRUE);

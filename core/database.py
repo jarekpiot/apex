@@ -238,3 +238,36 @@ class SentimentScoreRow(Base):
     score: Mapped[float] = mapped_column(Float, nullable=False)
     post_count: Mapped[int] = mapped_column(Integer, default=0)
     metadata_: Mapped[dict] = mapped_column("metadata", JSONB, default=dict)
+
+
+# ---------------------------------------------------------------------------
+# CIO / decision layer tables
+# ---------------------------------------------------------------------------
+
+class ICRecordRow(Base):
+    __tablename__ = "ic_records"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    record_id: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    ts: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), index=True,
+    )
+    asset: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    decision: Mapped[str] = mapped_column(String(16), nullable=False)
+    thesis: Mapped[dict] = mapped_column(JSONB, default=dict)
+    debate: Mapped[dict] = mapped_column(JSONB, default=dict)
+    metadata_: Mapped[dict] = mapped_column("metadata", JSONB, default=dict)
+
+
+class DailySummaryRow(Base):
+    __tablename__ = "daily_summaries"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ts: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), index=True,
+    )
+    date: Mapped[str] = mapped_column(String(10), nullable=False, unique=True)
+    total_pnl: Mapped[float] = mapped_column(Float, default=0.0)
+    trades_executed: Mapped[int] = mapped_column(Integer, default=0)
+    summary: Mapped[dict] = mapped_column(JSONB, default=dict)
+    metadata_: Mapped[dict] = mapped_column("metadata", JSONB, default=dict)

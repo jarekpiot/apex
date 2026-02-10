@@ -47,6 +47,9 @@ vaderSentiment>=3.3,<4
 pytrends>=4.9,<5
 yfinance>=0.2,<1
 
+# --- Regime classification ---
+hmmlearn>=0.3,<1
+
 # --- Utilities ---
 orjson>=3.10,<4
 python-dotenv>=1.0,<2
