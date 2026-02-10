@@ -1,0 +1,55 @@
+##############################################################################
+# APEX infrastructure — Redis + TimescaleDB
+# Usage:  docker compose -f docker/docker-compose.yml up -d
+##############################################################################
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: apex-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: >
+      redis-server
+        --appendonly yes
+        --maxmemory 512mb
+        --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - apex
+
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    container_name: apex-timescaledb
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: apex
+      POSTGRES_PASSWORD: apex
+      POSTGRES_DB: apex
+    volumes:
+      - tsdb_data:/home/postgres/pgdata/data
+      - ../data/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U apex"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - apex
+
+volumes:
+  redis_data:
+  tsdb_data:
+
+networks:
+  apex:
+    driver: bridge
