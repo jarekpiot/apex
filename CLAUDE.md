@@ -8,7 +8,7 @@
 ## Project Overview
 
 APEX is an autonomous multi-agent trading system on Hyperliquid perpetual futures
-(crypto, equities, commodities, FX). 24 registered agents collaborate via Redis
+(crypto, equities, commodities, FX). 26 registered agents collaborate via Redis
 Streams, persist to TimescaleDB, and execute through the Hyperliquid SDK.
 
 **Repository:** `C:\apex\`
@@ -31,8 +31,10 @@ Streams, persist to TimescaleDB, and execute through the Hyperliquid SDK.
 | 8 — Red Team | ✅ DONE | RedTeamChallenger (heuristic adversarial challenges) |
 | 9 — Data Ingestion | ✅ DONE | OnChainIntelligence, MacroFeed, SentimentScraper |
 | 10 — CIO System | ✅ DONE | ChiefInvestmentOfficer, SignalAggregator, RedTeamStrategist, PortfolioAllocator, RegimeClassifier |
+| 11 — Meta/Learning | ✅ DONE | PerformanceAuditor, StrategyLab, Dashboard API, Prometheus + Grafana monitoring, bootstrap scripts |
+| 12 — Integration Tests | ✅ DONE | 122 integration tests, smoke test script, signal tracer script |
 
-**24 of 24 agents implemented.** All agents wired and ready.
+**26 of 26 agents implemented.** All agents wired. Dashboard + monitoring ready. 670 tests passing.
 
 ---
 
@@ -85,6 +87,9 @@ RegimeClassifier → data:regime (HMM-based 5-state classification)
 | `apex:decisions` | (legacy) | — |
 | `apex:risk_checks` | RiskGuardian | (audit) |
 | `apex:red_team` | RedTeam | — |
+| `meta:performance_reports` | PerformanceAuditor | Dashboard |
+| `meta:weight_updates` | PerformanceAuditor | MetaOrchestrator, Dashboard |
+| `meta:shadow_results` | StrategyLab | Dashboard |
 
 ---
 
@@ -119,6 +124,9 @@ RegimeClassifier → data:regime (HMM-based 5-state classification)
 | `DailySummary` | End-of-day performance summary with agent grades |
 | `PositionReview` | CIO's review verdict for open positions |
 | `ResearchTask` / `ResearchResult` | CIO-to-agent research assignment and response |
+| `AgentPerformanceReport` | Rolling per-agent metrics: win_rate, sharpe, conversion, recommended_weight |
+| `WeightUpdate` | Broadcast of updated dynamic agent weights |
+| `ShadowTradeResult` | Shadow trade result: entry/exit price, return_bps, holding period |
 | `StopLevel` | Stop-loss config (fixed or trailing) |
 | `TakeProfitLevel` | Scaled exit target (price + close fraction) |
 | `NewListingAlert` | New perp detected on Hyperliquid |
@@ -211,14 +219,39 @@ C:\apex\
 │   ├── red_team/
 │   │   └── challenger.py            # ✅ 6 heuristic challenges on decisions:pending
 │   ├── meta/
-│   │   └── orchestrator.py          # ✅ Signal aggregation, consensus voting, dispatch
+│   │   ├── orchestrator.py          # ✅ Signal aggregation, consensus voting, dispatch
+│   │   ├── performance.py           # ✅ Per-agent performance tracking, dynamic weights
+│   │   ├── strategy_lab.py          # ✅ Shadow trading sandbox for signal evaluation
+│   │   └── dashboard.py             # ✅ FastAPI dashboard + Prometheus + WebSocket
 │   └── execution/
 │       ├── engine.py                  # ✅ MARKET/LIMIT/TWAP/ICEBERG, paper-trade default
 │       └── position_manager.py        # ✅ Trailing stops, scaled TPs, circuit breaker
 │
-├── tests/                             # 411 tests (pytest + pytest-asyncio)
+├── monitoring/
+│   ├── prometheus.yml                 # Scrape config for dashboard :8000/metrics
+│   └── grafana/
+│       ├── provisioning/             # Datasource + dashboard auto-provisioning
+│       └── dashboards/               # Pre-built APEX overview dashboard
+│
+├── bootstrap.sh                       # Linux/macOS bootstrap (venv + docker + launch)
+├── bootstrap.ps1                      # Windows PowerShell bootstrap
+│
+├── tests/                             # 670 tests (pytest + pytest-asyncio)
 │   ├── conftest.py                   # MockMessageBus, FakeSession, model factories
-│   └── test_*.py                     # Per-agent + lifecycle + model tests
+│   ├── test_*.py                     # Per-agent + lifecycle + model tests (26 agents)
+│   └── integration/                  # 122 integration tests
+│       ├── conftest.py               # TrackingBus (routes messages), agent factories
+│       ├── test_stream_wiring.py     # 28 stream constants + 10 agent subscriptions
+│       ├── test_legacy_pipeline.py   # MetaOrchestrator → RiskGuardian → ExecutionEngine
+│       ├── test_cio_pipeline.py      # SignalAggregator → CIO → risk pipeline
+│       ├── test_circuit_breakers.py  # Drawdown gates, defensive mode, exposure limits
+│       ├── test_anomaly_response.py  # AnomalyDetector → defensive mode flow
+│       ├── test_hedging_flow.py      # HedgingEngine exposure-based hedge proposals
+│       └── test_agent_lifecycle.py   # 26-agent start/stop with TrackingBus
+│
+├── scripts/
+│   ├── smoke_test.py                  # Quick validation (102 checks, no Docker needed)
+│   └── trace_signal.py                # End-to-end signal → trade tracer
 │
 ├── data/
 │   └── schema.sql                     # TimescaleDB DDL — 11 hypertables
@@ -246,6 +279,11 @@ C:\apex\
 - **CIO wiring:** CIO takes `red_team=` and `allocator=` constructor args for direct method calls during IC debates.
 - **IC debate flow:** Thesis → Expert Review (signal matrix) → Red Team Challenge → CIO Deliberation → Position Sizing. 3 consecutive RT overrides → human review required.
 - **CIO cannot override:** RiskGuardian or PlatformSpecialist. All CIO decisions go through the standard risk pipeline via `decisions:pending`.
+- **PerformanceAuditor**: Tracks per-agent win rate, Sharpe, and signal-to-trade conversion. Computes dynamic weights via EMA-smoothed rolling Sharpe. Writes to Redis hash `apex:agent_weights` + `agent_weights` DB table.
+- **StrategyLab**: Shadow trading sandbox — opens virtual positions from every signal, closes after 24h, compares shadow vs live returns.
+- **MetaOrchestrator dynamic weights**: Reads `apex:agent_weights` Redis hash every 60s, falls back to registry defaults.
+- **Dashboard**: FastAPI on `:8000`. REST + WebSocket + Prometheus `/metrics`. Background tasks subscribe to key Redis streams.
+- **Monitoring**: Prometheus scrapes `:8000/metrics`, Grafana auto-provisions from `monitoring/` configs.
 
 ---
 
@@ -263,8 +301,17 @@ C:\apex\
 ## Commands
 
 ```bash
-docker compose -f docker/docker-compose.yml up -d   # Start Redis + TimescaleDB
+docker compose -f docker/docker-compose.yml up -d   # Start Redis + TimescaleDB + Prometheus + Grafana
 pip install -r requirements.txt
-python main.py                                        # 24 agents READY
-python -m pytest tests/ -v                             # 411 tests
+python main.py                                        # 26 agents READY + dashboard on :8000
+python -m pytest tests/ -v                             # 670 tests (548 unit + 122 integration)
+python -m pytest tests/integration/ -v                 # Integration tests only
+python scripts/smoke_test.py                           # Quick 102-check validation (no Docker)
+python scripts/trace_signal.py                         # Trace a signal through full pipeline
+# Or use bootstrap scripts:
+./bootstrap.sh                                        # Linux/macOS — full setup + launch
+# .\bootstrap.ps1                                     # Windows PowerShell
+# Dashboard:   http://localhost:8000
+# Grafana:     http://localhost:3000  (admin / apex)
+# Prometheus:  http://localhost:9090
 ```

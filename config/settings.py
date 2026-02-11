@@ -300,6 +300,26 @@ class Settings(BaseSettings):
     regime_classifier_interval: int = Field(default=300, description="Regime classification interval (seconds).")
     regime_hmm_n_states: int = Field(default=5, description="Number of HMM hidden states for regime detection.")
 
+    # -- Performance Auditor --------------------------------------------------
+    perf_audit_interval: int = Field(default=300, description="Performance audit loop interval (seconds).")
+    perf_rolling_window_days: int = Field(default=30, description="Rolling window for performance metrics (days).")
+    perf_min_trades_for_weight: int = Field(default=10, description="Min trades before adjusting agent weight.")
+    perf_weight_update_interval: int = Field(default=3600, description="Dynamic weight recalc interval (seconds).")
+    perf_max_weight_change: float = Field(default=0.05, description="Max weight change per update cycle.")
+    perf_weight_ema_alpha: float = Field(default=0.3, description="EMA smoothing for weight updates.")
+
+    # -- Strategy Lab ---------------------------------------------------------
+    strategy_lab_enabled: bool = Field(default=True, description="Enable shadow trading sandbox.")
+    strategy_lab_window_days: int = Field(default=30, description="Comparison window for shadow vs live.")
+    strategy_lab_exit_hours: float = Field(default=24.0, description="Default shadow position holding period.")
+    strategy_lab_min_sample: int = Field(default=20, description="Min shadow trades before comparison.")
+    strategy_lab_promotion_threshold: float = Field(default=0.10, description="Shadow must outperform live by this fraction.")
+
+    # -- Dashboard ------------------------------------------------------------
+    dashboard_enabled: bool = Field(default=True, description="Enable FastAPI dashboard.")
+    dashboard_host: str = Field(default="0.0.0.0", description="Dashboard bind host.")
+    dashboard_port: int = Field(default=8000, description="Dashboard bind port.")
+
     # -- Platform polling intervals (seconds) ---------------------------------
     account_health_interval: float = 10.0
     asset_registry_interval: float = 300.0

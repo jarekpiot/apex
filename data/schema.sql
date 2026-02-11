@@ -232,3 +232,34 @@ CREATE TABLE IF NOT EXISTS daily_summaries (
 );
 
 SELECT create_hypertable('daily_summaries', 'ts', if_not_exists => TRUE);
+
+-- --------------------------------------------------------------------------
+-- Agent dynamic weights (hypertable)
+-- --------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS agent_weights (
+    id              BIGSERIAL       NOT NULL,
+    ts              TIMESTAMPTZ     NOT NULL DEFAULT now(),
+    agent_id        VARCHAR(64)     NOT NULL,
+    weight          DOUBLE PRECISION NOT NULL,
+    previous_weight DOUBLE PRECISION DEFAULT 0.0,
+    reason          TEXT            DEFAULT '',
+    metadata        JSONB           DEFAULT '{}'::jsonb,
+    PRIMARY KEY (id, ts)
+);
+
+SELECT create_hypertable('agent_weights', 'ts', if_not_exists => TRUE);
+
+CREATE INDEX IF NOT EXISTS idx_agent_weights_agent_ts
+    ON agent_weights (agent_id, ts DESC);
+
+-- --------------------------------------------------------------------------
+-- Extend performance_metrics with source/agent/asset columns (idempotent)
+-- --------------------------------------------------------------------------
+ALTER TABLE performance_metrics ADD COLUMN IF NOT EXISTS source VARCHAR(64) DEFAULT '';
+ALTER TABLE performance_metrics ADD COLUMN IF NOT EXISTS agent_id VARCHAR(64) DEFAULT '';
+ALTER TABLE performance_metrics ADD COLUMN IF NOT EXISTS asset VARCHAR(32) DEFAULT '';
+
+CREATE INDEX IF NOT EXISTS idx_perf_source_ts
+    ON performance_metrics (source, ts DESC);
+CREATE INDEX IF NOT EXISTS idx_perf_agent_ts
+    ON performance_metrics (agent_id, ts DESC);

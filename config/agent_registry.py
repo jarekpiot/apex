@@ -237,6 +237,20 @@ AGENT_REGISTRY: dict[str, AgentEntry] = {
             default_weight=0.0,
             status=AgentStatus.ACTIVE,
         ),
+        AgentEntry(
+            agent_id="performance_auditor",
+            agent_type=AgentType.META,
+            description="Per-agent performance tracking and dynamic weight updates.",
+            default_weight=0.0,
+            status=AgentStatus.ACTIVE,
+        ),
+        AgentEntry(
+            agent_id="strategy_lab",
+            agent_type=AgentType.META,
+            description="Shadow trading sandbox — evaluates signal quality without live risk.",
+            default_weight=0.0,
+            status=AgentStatus.ACTIVE,
+        ),
     ]
 }
 

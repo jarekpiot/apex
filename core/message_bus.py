@@ -57,6 +57,11 @@ STREAM_CIO_RESEARCH_RESULTS = "cio:research_results"
 STREAM_CIO_SIGNAL_MATRIX = "cio:signal_matrix"
 STREAM_CIO_PRIORITIES = "cio:priorities"
 
+# Meta / learning layer streams.
+STREAM_PERFORMANCE_REPORTS = "meta:performance_reports"
+STREAM_WEIGHT_UPDATES = "meta:weight_updates"
+STREAM_SHADOW_RESULTS = "meta:shadow_results"
+
 # How long to block on XREADGROUP when no new messages arrive (ms).
 _DEFAULT_BLOCK_MS = 5_000
 _DEFAULT_BATCH = 10

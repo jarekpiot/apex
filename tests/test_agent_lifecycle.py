@@ -32,6 +32,8 @@ from agents.sentiment.funding import SentimentFunding
 from agents.macro.regime import MacroRegime
 from agents.red_team.challenger import RedTeamChallenger
 from agents.meta.orchestrator import MetaOrchestrator
+from agents.meta.performance import PerformanceAuditor
+from agents.meta.strategy_lab import StrategyLab
 from agents.ingestion.onchain_intel import OnChainIntelligence
 from agents.ingestion.macro_feed import MacroFeed
 from agents.ingestion.sentiment import SentimentScraper
@@ -71,6 +73,8 @@ AGENT_SPECS: list[tuple[type, str, str, dict[str, Any]]] = [
     (PortfolioAllocator,   "portfolio_allocator",     "decision",    {}),
     (RegimeClassifier,     "regime_classifier",       "decision",    {}),
     (MetaOrchestrator,     "meta_orchestrator",       "meta",        {}),
+    (PerformanceAuditor,   "performance_auditor",     "meta",        {}),
+    (StrategyLab,          "strategy_lab",            "meta",        {}),
 ]
 
 # Use the class name as the test-id for readable pytest output.

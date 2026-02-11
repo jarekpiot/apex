@@ -653,3 +653,53 @@ class PositionReview(BaseModel):
     new_stop_loss: float | None = None
     size_adjustment_pct: float = 0.0
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+# ---------------------------------------------------------------------------
+# Meta / learning layer models
+# ---------------------------------------------------------------------------
+
+class AgentPerformanceReport(BaseModel):
+    """Rolling performance metrics for a single agent."""
+
+    agent_id: str
+    timestamp: datetime = Field(default_factory=_utcnow)
+    window_days: int = 30
+    total_signals: int = 0
+    signals_traded: int = 0
+    signal_to_trade_conversion: float = 0.0
+    win_rate: float = 0.0
+    avg_return_bps: float = 0.0
+    sharpe_ratio: float = 0.0
+    max_drawdown_contribution: float = 0.0
+    total_pnl: float = 0.0
+    recommended_weight: float = 0.0
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class WeightUpdate(BaseModel):
+    """Broadcast of updated dynamic agent weights."""
+
+    timestamp: datetime = Field(default_factory=_utcnow)
+    weights: dict[str, float] = Field(
+        default_factory=dict,
+        description="agent_id → new weight mapping.",
+    )
+    reason: str = ""
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ShadowTradeResult(BaseModel):
+    """Result of a shadow (paper) trade tracked by StrategyLab."""
+
+    signal_id: str
+    agent_id: str
+    timestamp: datetime = Field(default_factory=_utcnow)
+    asset: str
+    direction: float = 0.0
+    entry_price: float = 0.0
+    exit_price: float | None = None
+    holding_period_hours: float = 0.0
+    return_bps: float = 0.0
+    is_closed: bool = False
+    metadata: dict[str, Any] = Field(default_factory=dict)

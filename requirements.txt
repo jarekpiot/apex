@@ -50,6 +50,11 @@ yfinance>=0.2,<1
 # --- Regime classification ---
 hmmlearn>=0.3,<1
 
+# --- Dashboard / monitoring ---
+fastapi>=0.115,<1
+uvicorn[standard]>=0.34,<1
+prometheus-client>=0.21,<1
+
 # --- Utilities ---
 orjson>=3.10,<4
 python-dotenv>=1.0,<2

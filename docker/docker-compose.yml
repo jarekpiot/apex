@@ -1,5 +1,5 @@
 ##############################################################################
-# APEX infrastructure — Redis + TimescaleDB
+# APEX infrastructure — Redis + TimescaleDB + Prometheus + Grafana
 # Usage:  docker compose -f docker/docker-compose.yml up -d
 ##############################################################################
 
@@ -46,9 +46,44 @@ services:
     networks:
       - apex
 
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: apex-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ../monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    networks:
+      - apex
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: apex-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: apex
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ../monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+      - timescaledb
+    restart: unless-stopped
+    networks:
+      - apex
+
 volumes:
   redis_data:
   tsdb_data:
+  prometheus_data:
+  grafana_data:
 
 networks:
   apex:

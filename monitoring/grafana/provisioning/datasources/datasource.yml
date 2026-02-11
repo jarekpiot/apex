@@ -1,0 +1,27 @@
+##############################################################################
+# APEX — Grafana datasource provisioning
+##############################################################################
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+
+  - name: TimescaleDB
+    type: postgres
+    access: proxy
+    url: timescaledb:5432
+    database: apex
+    user: apex
+    secureJsonData:
+      password: apex
+    jsonData:
+      sslmode: disable
+      postgresVersion: 1600
+      timescaledb: true
+    editable: false

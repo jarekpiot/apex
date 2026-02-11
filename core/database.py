@@ -192,6 +192,9 @@ class PerformanceMetricRow(Base):
     )
     metric_name: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     metric_value: Mapped[float] = mapped_column(Float, nullable=False)
+    source: Mapped[str] = mapped_column(String(64), nullable=True, default="", index=True)
+    agent_id: Mapped[str] = mapped_column(String(64), nullable=True, default="", index=True)
+    asset: Mapped[str] = mapped_column(String(32), nullable=True, default="")
     metadata_: Mapped[dict] = mapped_column("metadata", JSONB, default=dict)
 
 
@@ -256,6 +259,20 @@ class ICRecordRow(Base):
     decision: Mapped[str] = mapped_column(String(16), nullable=False)
     thesis: Mapped[dict] = mapped_column(JSONB, default=dict)
     debate: Mapped[dict] = mapped_column(JSONB, default=dict)
+    metadata_: Mapped[dict] = mapped_column("metadata", JSONB, default=dict)
+
+
+class AgentWeightRow(Base):
+    __tablename__ = "agent_weights"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ts: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), index=True,
+    )
+    agent_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    weight: Mapped[float] = mapped_column(Float, nullable=False)
+    previous_weight: Mapped[float] = mapped_column(Float, default=0.0)
+    reason: Mapped[str] = mapped_column(Text, default="")
     metadata_: Mapped[dict] = mapped_column("metadata", JSONB, default=dict)
 
 

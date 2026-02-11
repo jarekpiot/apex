@@ -145,6 +145,7 @@ class MetaOrchestrator(BaseAgent):
             asyncio.create_task(self._portfolio_listener(), name="orch:port"),
             asyncio.create_task(self._price_listener(), name="orch:px"),
             asyncio.create_task(self._rejection_listener(), name="orch:rej"),
+            asyncio.create_task(self._weight_refresh_loop(), name="orch:weights"),
         ]
 
     async def stop(self) -> None:
@@ -364,6 +365,31 @@ class MetaOrchestrator(BaseAgent):
                 self._mid_prices.update(update.prices)
             except Exception:
                 pass
+
+    async def _weight_refresh_loop(self) -> None:
+        """Read dynamic weights from Redis hash every 60s.
+
+        Falls back to registry defaults if the hash doesn't exist yet
+        (i.e., PerformanceAuditor hasn't run).
+        """
+        await asyncio.sleep(30)
+        while True:
+            try:
+                raw = await self.bus.redis.hgetall("apex:agent_weights")
+                if raw:
+                    for k, v in raw.items():
+                        key = k.decode() if isinstance(k, bytes) else k
+                        val = v.decode() if isinstance(v, bytes) else v
+                        try:
+                            self._weights[key] = float(val)
+                        except (ValueError, TypeError):
+                            pass
+                    self.log.debug("Refreshed %d dynamic weights from Redis.", len(raw))
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                pass  # Redis unavailable — keep using current weights.
+            await asyncio.sleep(60)
 
     async def _rejection_listener(self) -> None:
         """Track recently rejected decisions for back-off."""

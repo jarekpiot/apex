@@ -77,6 +77,8 @@ def _create_agents(bus: MessageBus) -> list:
     from agents.decision.portfolio_allocator import PortfolioAllocator
     from agents.decision.regime_classifier import RegimeClassifier
     from agents.meta.orchestrator import MetaOrchestrator
+    from agents.meta.performance import PerformanceAuditor
+    from agents.meta.strategy_lab import StrategyLab
 
     agents: list = []
 
@@ -109,6 +111,8 @@ def _create_agents(bus: MessageBus) -> list:
 
     # --- Meta / ensemble layer (aggregates signals → decisions) ---
     orchestrator = MetaOrchestrator(bus=bus)
+    perf_auditor = PerformanceAuditor(bus=bus)
+    strategy_lab = StrategyLab(bus=bus)
 
     # --- Risk layer (reads streams, no direct agent deps) ---
     risk_guardian = RiskGuardian(bus=bus)
@@ -142,6 +146,8 @@ def _create_agents(bus: MessageBus) -> list:
         "portfolio_allocator": allocator,
         "regime_classifier": regime_classifier,
         "meta_orchestrator": orchestrator,
+        "performance_auditor": perf_auditor,
+        "strategy_lab": strategy_lab,
         "risk_guardian": risk_guardian,
         "anomaly_detector": anomaly_detector,
         "hedging_engine": hedging_engine,
@@ -195,10 +201,22 @@ async def run() -> None:
             pass
 
     agents: list = []
+    dashboard_task: asyncio.Task | None = None
     try:
         await _connect_infra(bus)
         agents = _create_agents(bus)
         await _start_agents(agents)
+
+        # Start dashboard if enabled.
+        if settings.dashboard_enabled:
+            from agents.meta.dashboard import start_dashboard
+            dashboard_task = asyncio.create_task(
+                start_dashboard(bus, agents=agents), name="dashboard",
+            )
+            log.info(
+                "Dashboard enabled on http://%s:%d",
+                settings.dashboard_host, settings.dashboard_port,
+            )
 
         log.info(
             "APEX is live  |  testnet=%s  |  agents=%d  |  max_pos=%.1f%%  |  circuit_breaker=%.1f%%",
@@ -216,6 +234,12 @@ async def run() -> None:
 
     finally:
         log.info("Shutting down …")
+        if dashboard_task:
+            dashboard_task.cancel()
+            try:
+                await dashboard_task
+            except asyncio.CancelledError:
+                pass
         await _stop_agents(agents)
         await _disconnect_infra(bus)
         log.info("APEX stopped.")
