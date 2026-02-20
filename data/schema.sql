@@ -263,3 +263,86 @@ CREATE INDEX IF NOT EXISTS idx_perf_source_ts
     ON performance_metrics (source, ts DESC);
 CREATE INDEX IF NOT EXISTS idx_perf_agent_ts
     ON performance_metrics (agent_id, ts DESC);
+
+-- --------------------------------------------------------------------------
+-- Agent gamification profiles
+-- --------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS agent_profiles (
+    agent_id        VARCHAR(50)     PRIMARY KEY,
+    rank            VARCHAR(20)     NOT NULL DEFAULT 'intern',
+    xp              INTEGER         NOT NULL DEFAULT 0,
+    level           INTEGER         NOT NULL DEFAULT 1,
+    current_win_streak  INTEGER     DEFAULT 0,
+    current_loss_streak INTEGER     DEFAULT 0,
+    best_win_streak     INTEGER     DEFAULT 0,
+    worst_loss_streak   INTEGER     DEFAULT 0,
+    signals_30d     INTEGER         DEFAULT 0,
+    wins_30d        INTEGER         DEFAULT 0,
+    high_conv_wins  INTEGER         DEFAULT 0,
+    high_conv_total INTEGER         DEFAULT 0,
+    regime_stats    JSONB           DEFAULT '{}'::jsonb,
+    asset_class_stats JSONB         DEFAULT '{}'::jsonb,
+    abilities       JSONB           DEFAULT '{}'::jsonb,
+    on_probation    BOOLEAN         DEFAULT FALSE,
+    benched         BOOLEAN         DEFAULT FALSE,
+    updated_at      TIMESTAMPTZ     DEFAULT NOW()
+);
+
+-- --------------------------------------------------------------------------
+-- Signal outcomes (hypertable)
+-- --------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS signal_outcomes (
+    id                  BIGSERIAL       NOT NULL,
+    ts                  TIMESTAMPTZ     NOT NULL DEFAULT now(),
+    signal_id           VARCHAR(32)     NOT NULL,
+    agent_id            VARCHAR(50)     NOT NULL,
+    asset               VARCHAR(20)     NOT NULL,
+    predicted_direction DOUBLE PRECISION NOT NULL,
+    actual_move_pct     DOUBLE PRECISION NOT NULL,
+    correct             BOOLEAN         NOT NULL,
+    conviction          DOUBLE PRECISION DEFAULT 0.5,
+    was_primary_driver  BOOLEAN         DEFAULT FALSE,
+    regime              VARCHAR(30)     DEFAULT '',
+    pnl_contribution    DOUBLE PRECISION DEFAULT 0,
+    xp_earned           INTEGER         DEFAULT 0,
+    PRIMARY KEY (id, ts)
+);
+
+SELECT create_hypertable('signal_outcomes', 'ts', if_not_exists => TRUE);
+
+CREATE INDEX IF NOT EXISTS idx_outcomes_agent_ts
+    ON signal_outcomes (agent_id, ts DESC);
+
+-- --------------------------------------------------------------------------
+-- Decision journal (hypertable)
+-- --------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS decision_journal (
+    id              BIGSERIAL       NOT NULL,
+    ts              TIMESTAMPTZ     NOT NULL DEFAULT now(),
+    entry_id        VARCHAR(32)     NOT NULL UNIQUE,
+    asset           VARCHAR(20)     NOT NULL,
+    direction       VARCHAR(10)     NOT NULL,
+    thesis_summary  TEXT            DEFAULT '',
+    conviction      DOUBLE PRECISION DEFAULT 0.5,
+    regime          VARCHAR(30)     DEFAULT '',
+    signal_snapshot JSONB           DEFAULT '{}'::jsonb,
+    top_signals     JSONB           DEFAULT '[]'::jsonb,
+    red_team_summary TEXT           DEFAULT '',
+    debate_quality  VARCHAR(20)     DEFAULT '',
+    outcome_pnl_pct DOUBLE PRECISION,
+    outcome_correct BOOLEAN,
+    holding_hours   DOUBLE PRECISION,
+    max_adverse_pct DOUBLE PRECISION,
+    exit_reason     VARCHAR(30)     DEFAULT '',
+    lesson_learned  TEXT            DEFAULT '',
+    would_repeat    BOOLEAN,
+    PRIMARY KEY (id, ts)
+);
+
+SELECT create_hypertable('decision_journal', 'ts', if_not_exists => TRUE);
+
+CREATE INDEX IF NOT EXISTS idx_journal_asset_ts
+    ON decision_journal (asset, ts DESC);
+
+CREATE INDEX IF NOT EXISTS idx_journal_regime_ts
+    ON decision_journal (regime, ts DESC);

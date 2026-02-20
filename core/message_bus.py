@@ -61,6 +61,7 @@ STREAM_CIO_PRIORITIES = "cio:priorities"
 STREAM_PERFORMANCE_REPORTS = "meta:performance_reports"
 STREAM_WEIGHT_UPDATES = "meta:weight_updates"
 STREAM_SHADOW_RESULTS = "meta:shadow_results"
+STREAM_AGENT_RANKINGS = "meta:agent_rankings"
 
 # How long to block on XREADGROUP when no new messages arrive (ms).
 _DEFAULT_BLOCK_MS = 5_000

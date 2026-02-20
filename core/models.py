@@ -703,3 +703,18 @@ class ShadowTradeResult(BaseModel):
     return_bps: float = 0.0
     is_closed: bool = False
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+# ---------------------------------------------------------------------------
+# Gamification / ranking models
+# ---------------------------------------------------------------------------
+
+class AgentRankingSnapshot(BaseModel):
+    """Broadcast of current agent rankings for dashboard + CIO."""
+
+    timestamp: datetime = Field(default_factory=_utcnow)
+    rankings: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="List of {agent_id, rank, xp, level, streak, win_rate, multiplier}.",
+    )
+    metadata: dict[str, Any] = Field(default_factory=dict)

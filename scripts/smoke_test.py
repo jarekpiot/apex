@@ -103,6 +103,8 @@ def main() -> int:
     check("core.logger", lambda: __import__("core.logger"))
     check("config.settings", lambda: __import__("config.settings"))
     check("config.agent_registry", lambda: __import__("config.agent_registry"))
+    check("core.gamification", lambda: __import__("core.gamification"))
+    check("core.decision_journal", lambda: __import__("core.decision_journal"))
 
     # -----------------------------------------------------------------------
     # 2. Stream constants
@@ -122,6 +124,7 @@ def main() -> int:
         "STREAM_CIO_RESEARCH_TASKS", "STREAM_CIO_RESEARCH_RESULTS",
         "STREAM_CIO_SIGNAL_MATRIX", "STREAM_CIO_PRIORITIES",
         "STREAM_PERFORMANCE_REPORTS", "STREAM_WEIGHT_UPDATES", "STREAM_SHADOW_RESULTS",
+        "STREAM_AGENT_RANKINGS",
     ]
 
     for name in EXPECTED_STREAMS:

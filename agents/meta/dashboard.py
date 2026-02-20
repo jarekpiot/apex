@@ -23,6 +23,7 @@ from config.agent_registry import AGENT_REGISTRY
 from config.settings import settings
 from core.message_bus import (
     MessageBus,
+    STREAM_AGENT_RANKINGS,
     STREAM_DECISIONS_APPROVED,
     STREAM_DECISIONS_REJECTED,
     STREAM_MARKET_PRICES,
@@ -48,6 +49,9 @@ _recent_trades: deque[dict[str, Any]] = deque(maxlen=200)
 _recent_anomalies: deque[dict[str, Any]] = deque(maxlen=100)
 _agent_weights: dict[str, float] = {}
 _agent_performance: dict[str, dict[str, Any]] = {}
+_agent_rankings: list[dict[str, Any]] = []
+_agent_rankings_by_id: dict[str, dict[str, Any]] = {}
+_recent_journal: deque[dict[str, Any]] = deque(maxlen=200)
 _mid_prices: dict[str, float] = {}
 _ws_clients: set[Any] = set()  # Active WebSocket connections.
 _bus_ref: MessageBus | None = None
@@ -72,6 +76,8 @@ try:
     _prom_agent_weight = Gauge("apex_agent_weight", "Current agent weight", ["agent_id"])
     _prom_agent_sharpe = Gauge("apex_agent_sharpe", "Agent rolling Sharpe ratio", ["agent_id"])
     _prom_agent_win_rate = Gauge("apex_agent_win_rate", "Agent win rate", ["agent_id"])
+    _prom_agent_rank = Gauge("apex_agent_rank_level", "Agent rank as numeric level", ["agent_id"])
+    _prom_agent_xp = Gauge("apex_agent_xp", "Agent XP", ["agent_id"])
 
     _PROM_AVAILABLE = True
 except ImportError:
@@ -208,6 +214,30 @@ async def _listen_performance(bus: MessageBus) -> None:
             pass
 
 
+async def _listen_rankings(bus: MessageBus) -> None:
+    async for _mid, payload in bus.subscribe_to(
+        STREAM_AGENT_RANKINGS, group="dashboard_rankings", consumer="dashboard",
+    ):
+        try:
+            rankings = payload.get("rankings", [])
+            _agent_rankings.clear()
+            _agent_rankings.extend(rankings)
+            _agent_rankings_by_id.clear()
+            for r in rankings:
+                aid = r.get("agent_id", "")
+                if aid:
+                    _agent_rankings_by_id[aid] = r
+            if _PROM_AVAILABLE:
+                for r in rankings:
+                    aid = r.get("agent_id", "")
+                    if aid:
+                        _prom_agent_rank.labels(agent_id=aid).set(r.get("rank_level", 0))
+                        _prom_agent_xp.labels(agent_id=aid).set(r.get("xp", 0))
+            await _broadcast_ws({"type": "rankings", "data": rankings})
+        except Exception:
+            pass
+
+
 async def _broadcast_ws(message: dict) -> None:
     """Send a message to all connected WebSocket clients."""
     if not _ws_clients:
@@ -247,6 +277,7 @@ def create_app(bus: MessageBus | None = None, agents: list | None = None) -> Any
                 _listen_portfolio, _listen_signals, _listen_decisions,
                 _listen_rejections, _listen_trades, _listen_anomalies,
                 _listen_prices, _listen_weights, _listen_performance,
+                _listen_rankings,
             ]
             for fn in listeners:
                 tasks.append(asyncio.create_task(fn(bus)))
@@ -340,6 +371,29 @@ def create_app(bus: MessageBus | None = None, agents: list | None = None) -> Any
     @app.get("/weights")
     async def weights():
         return _agent_weights
+
+    @app.get("/leaderboard")
+    async def leaderboard():
+        return _agent_rankings
+
+    @app.get("/agent/{agent_id}/profile")
+    async def agent_profile(agent_id: str):
+        data = _agent_rankings_by_id.get(agent_id)
+        if data is None:
+            return JSONResponse({"error": "Agent profile not found"}, status_code=404)
+        return data
+
+    @app.get("/journal")
+    async def journal(limit: int = 50, offset: int = 0):
+        items = list(_recent_journal)
+        return items[offset:offset + limit]
+
+    @app.get("/journal/{entry_id}")
+    async def journal_entry(entry_id: str):
+        for item in _recent_journal:
+            if item.get("entry_id") == entry_id:
+                return item
+        return JSONResponse({"error": "Journal entry not found"}, status_code=404)
 
     @app.get("/metrics")
     async def metrics():

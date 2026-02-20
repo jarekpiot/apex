@@ -33,8 +33,9 @@ Streams, persist to TimescaleDB, and execute through the Hyperliquid SDK.
 | 10 — CIO System | ✅ DONE | ChiefInvestmentOfficer, SignalAggregator, RedTeamStrategist, PortfolioAllocator, RegimeClassifier |
 | 11 — Meta/Learning | ✅ DONE | PerformanceAuditor, StrategyLab, Dashboard API, Prometheus + Grafana monitoring, bootstrap scripts |
 | 12 — Integration Tests | ✅ DONE | 122 integration tests, smoke test script, signal tracer script |
+| 13 — Gamification | ✅ DONE | GamificationEngine (XP/ranks/streaks), DecisionJournal (CIO memory), rank-weighted signals, agent trust in IC debates |
 
-**26 of 26 agents implemented.** All agents wired. Dashboard + monitoring ready. 670 tests passing.
+**26 of 26 agents implemented.** All agents wired. Dashboard + monitoring + gamification ready.
 
 ---
 
@@ -90,6 +91,7 @@ RegimeClassifier → data:regime (HMM-based 5-state classification)
 | `meta:performance_reports` | PerformanceAuditor | Dashboard |
 | `meta:weight_updates` | PerformanceAuditor | MetaOrchestrator, Dashboard |
 | `meta:shadow_results` | StrategyLab | Dashboard |
+| `meta:agent_rankings` | PerformanceAuditor | Dashboard |
 
 ---
 
@@ -127,6 +129,7 @@ RegimeClassifier → data:regime (HMM-based 5-state classification)
 | `AgentPerformanceReport` | Rolling per-agent metrics: win_rate, sharpe, conversion, recommended_weight |
 | `WeightUpdate` | Broadcast of updated dynamic agent weights |
 | `ShadowTradeResult` | Shadow trade result: entry/exit price, return_bps, holding period |
+| `AgentRankingSnapshot` | Leaderboard snapshot: all agent profiles with XP, rank, streaks |
 | `StopLevel` | Stop-loss config (fixed or trailing) |
 | `TakeProfitLevel` | Scaled exit target (price + close fraction) |
 | `NewListingAlert` | New perp detected on Hyperliquid |
@@ -178,13 +181,15 @@ C:\apex\
 │
 ├── config/
 │   ├── settings.py                    # Pydantic BaseSettings (all env + risk params)
-│   └── agent_registry.py             # 24 agents: id, type, weight, status
+│   └── agent_registry.py             # 26 agents: id, type, weight, status
 │
 ├── core/
 │   ├── models.py                      # All shared Pydantic v2 domain models
 │   ├── message_bus.py                 # Redis Streams pub/sub (publish_to/subscribe_to)
 │   ├── database.py                    # Async SQLAlchemy ORM for TimescaleDB
-│   └── logger.py                      # Structured JSON logging with agent_id
+│   ├── logger.py                      # Structured JSON logging with agent_id
+│   ├── gamification.py                # ✅ XP, ranks, streaks, weight multipliers
+│   └── decision_journal.py            # ✅ CIO institutional memory + context builder
 │
 ├── agents/
 │   ├── base_agent.py                  # Abstract base: start/stop/process lifecycle
@@ -254,7 +259,7 @@ C:\apex\
 │   └── trace_signal.py                # End-to-end signal → trade tracer
 │
 ├── data/
-│   └── schema.sql                     # TimescaleDB DDL — 11 hypertables
+│   └── schema.sql                     # TimescaleDB DDL — 11 hypertables + gamification tables
 │
 └── docker/
     └── docker-compose.yml             # Redis 7 + TimescaleDB (pg16)
@@ -284,6 +289,37 @@ C:\apex\
 - **MetaOrchestrator dynamic weights**: Reads `apex:agent_weights` Redis hash every 60s, falls back to registry defaults.
 - **Dashboard**: FastAPI on `:8000`. REST + WebSocket + Prometheus `/metrics`. Background tasks subscribe to key Redis streams.
 - **Monitoring**: Prometheus scrapes `:8000/metrics`, Grafana auto-provisions from `monitoring/` configs.
+- **Gamification**: GamificationEngine tracks XP, ranks, streaks per agent. PerformanceAuditor feeds outcomes. SignalAggregator applies rank-weighted multipliers.
+- **Decision Journal**: CIO institutional memory. Records IC decisions + outcomes. Injects historical context + agent trust levels into LLM prompts.
+
+---
+
+## Gamification System (core/gamification.py)
+
+**Ranks:** INTERN → JUNIOR → ANALYST → SENIOR → PRINCIPAL → PARTNER
+
+| Rank | XP Threshold | Weight Multiplier | Conviction Cap | Special |
+|------|-------------|-------------------|----------------|---------|
+| INTERN | 0 | 0.5× | 0.5 | Benched if 0 XP |
+| JUNIOR | 500 | 0.75× | 0.7 | — |
+| ANALYST | 2000 | 1.0× | 1.0 | — |
+| SENIOR | 5000 | 1.3× | 1.0 | Urgent IC debates |
+| PRINCIPAL | 12000 | 1.5× | 1.0 | Veto ability |
+| PARTNER | 25000 | 2.0× | 1.0 | Veto + urgent IC |
+
+**XP Events:** +100 correct signal, +200 primary driver, +150 high-conviction correct, +300 "called it" (large move), +50 cross-asset, -50 incorrect, -100 high-conviction wrong, -200 blown call. Win/loss streak bonus: ±25 × streak length (3+).
+
+**Probation:** 3 consecutive losses → weight halved for 24h. 5 losses → demotion.
+
+---
+
+## Decision Journal (core/decision_journal.py)
+
+CIO institutional memory: records every IC decision with thesis, conviction, regime, top signals, and RT summary. After trade closes, records outcome (PnL, correct, holding period, max adverse excursion). Lessons can be added per decision.
+
+**CIO context injection:** `build_cio_context()` produces a prompt block with overall stats, regime-specific performance, asset history, and recent lessons — injected into `_generate_brief()` and `_llm_deliberate()`.
+
+**Agent trust injection:** `_build_agent_trust_context()` builds rank display from gamification leaderboard — injected into IC debate prompts so CIO weights higher-ranked agents more.
 
 ---
 

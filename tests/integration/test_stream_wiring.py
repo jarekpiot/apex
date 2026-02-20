@@ -2,7 +2,7 @@
 Integration tests: stream wiring verification.
 
 Validates that:
-  1. All 28 stream constants are defined in message_bus.py
+  1. All 29 stream constants are defined in message_bus.py
   2. Each agent subscribes to the expected streams when started
   3. Published messages route to the correct subscribers
   4. No orphan streams (every stream has ≥1 publisher and ≥1 subscriber)
@@ -17,6 +17,7 @@ import pytest
 
 from core.message_bus import (
     STREAM_ACCOUNT_HEALTH,
+    STREAM_AGENT_RANKINGS,
     STREAM_CIO_PRIORITIES,
     STREAM_CIO_RESEARCH_RESULTS,
     STREAM_CIO_RESEARCH_TASKS,
@@ -175,6 +176,7 @@ ALL_STREAM_CONSTANTS = [
     "STREAM_PERFORMANCE_REPORTS",
     "STREAM_WEIGHT_UPDATES",
     "STREAM_SHADOW_RESULTS",
+    "STREAM_AGENT_RANKINGS",
 ]
 
 
@@ -192,7 +194,7 @@ def test_stream_constant_count():
     """We expect exactly 28 STREAM_* constants."""
     from core import message_bus as mb
     streams = [name for name in dir(mb) if name.startswith("STREAM_")]
-    assert len(streams) == 28, f"Expected 28 STREAM_* constants, got {len(streams)}: {streams}"
+    assert len(streams) == 29, f"Expected 29 STREAM_* constants, got {len(streams)}: {streams}"
 
 
 def test_no_duplicate_stream_values():

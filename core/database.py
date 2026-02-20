@@ -288,3 +288,78 @@ class DailySummaryRow(Base):
     trades_executed: Mapped[int] = mapped_column(Integer, default=0)
     summary: Mapped[dict] = mapped_column(JSONB, default=dict)
     metadata_: Mapped[dict] = mapped_column("metadata", JSONB, default=dict)
+
+
+# ---------------------------------------------------------------------------
+# Gamification tables
+# ---------------------------------------------------------------------------
+
+class AgentProfileRow(Base):
+    __tablename__ = "agent_profiles"
+
+    agent_id: Mapped[str] = mapped_column(String(50), primary_key=True)
+    rank: Mapped[str] = mapped_column(String(20), nullable=False, default="intern")
+    xp: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    level: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    current_win_streak: Mapped[int] = mapped_column(Integer, default=0)
+    current_loss_streak: Mapped[int] = mapped_column(Integer, default=0)
+    best_win_streak: Mapped[int] = mapped_column(Integer, default=0)
+    worst_loss_streak: Mapped[int] = mapped_column(Integer, default=0)
+    signals_30d: Mapped[int] = mapped_column(Integer, default=0)
+    wins_30d: Mapped[int] = mapped_column(Integer, default=0)
+    high_conv_wins: Mapped[int] = mapped_column(Integer, default=0)
+    high_conv_total: Mapped[int] = mapped_column(Integer, default=0)
+    regime_stats: Mapped[dict] = mapped_column(JSONB, default=dict)
+    asset_class_stats: Mapped[dict] = mapped_column(JSONB, default=dict)
+    abilities: Mapped[dict] = mapped_column(JSONB, default=dict)
+    on_probation: Mapped[bool] = mapped_column(Boolean, default=False)
+    benched: Mapped[bool] = mapped_column(Boolean, default=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(),
+    )
+
+
+class SignalOutcomeRow(Base):
+    __tablename__ = "signal_outcomes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ts: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), index=True,
+    )
+    signal_id: Mapped[str] = mapped_column(String(32), nullable=False)
+    agent_id: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    asset: Mapped[str] = mapped_column(String(20), nullable=False)
+    predicted_direction: Mapped[float] = mapped_column(Float, nullable=False)
+    actual_move_pct: Mapped[float] = mapped_column(Float, nullable=False)
+    correct: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    conviction: Mapped[float] = mapped_column(Float, default=0.5)
+    was_primary_driver: Mapped[bool] = mapped_column(Boolean, default=False)
+    regime: Mapped[str] = mapped_column(String(30), default="")
+    pnl_contribution: Mapped[float] = mapped_column(Float, default=0.0)
+    xp_earned: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class DecisionJournalRow(Base):
+    __tablename__ = "decision_journal"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ts: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), index=True,
+    )
+    entry_id: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
+    asset: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    direction: Mapped[str] = mapped_column(String(10), nullable=False)
+    thesis_summary: Mapped[str] = mapped_column(Text, default="")
+    conviction: Mapped[float] = mapped_column(Float, default=0.5)
+    regime: Mapped[str] = mapped_column(String(30), default="")
+    signal_snapshot: Mapped[dict] = mapped_column(JSONB, default=dict)
+    top_signals: Mapped[dict] = mapped_column(JSONB, default=list)
+    red_team_summary: Mapped[str] = mapped_column(Text, default="")
+    debate_quality: Mapped[str] = mapped_column(String(20), default="")
+    outcome_pnl_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    outcome_correct: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    holding_hours: Mapped[float | None] = mapped_column(Float, nullable=True)
+    max_adverse_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    exit_reason: Mapped[str] = mapped_column(String(30), default="")
+    lesson_learned: Mapped[str] = mapped_column(Text, default="")
+    would_repeat: Mapped[bool | None] = mapped_column(Boolean, nullable=True)

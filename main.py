@@ -100,19 +100,30 @@ def _create_agents(bus: MessageBus) -> list:
     sentiment_funding = SentimentFunding(bus=bus)
     macro_regime = MacroRegime(bus=bus)
 
+    # --- Gamification + Decision Journal (shared across agents) ---
+    from core.gamification import GamificationEngine
+    from core.decision_journal import DecisionJournal
+
+    gamification = GamificationEngine()
+    journal = DecisionJournal()
+
     # --- Decision / CIO layer ---
     regime_classifier = RegimeClassifier(bus=bus)
-    signal_aggregator = SignalAggregator(bus=bus)
+    signal_aggregator = SignalAggregator(bus=bus, gamification=gamification)
     allocator = PortfolioAllocator(bus=bus)
     rt_strategist = RedTeamStrategist(bus=bus)
     cio = ChiefInvestmentOfficer(
         bus=bus, red_team=rt_strategist, allocator=allocator,
+        gamification=gamification, journal=journal,
     )
 
     # --- Meta / ensemble layer (aggregates signals → decisions) ---
     orchestrator = MetaOrchestrator(bus=bus)
     perf_auditor = PerformanceAuditor(bus=bus)
     strategy_lab = StrategyLab(bus=bus)
+
+    # Wire gamification engine into performance auditor.
+    perf_auditor.gamification = gamification
 
     # --- Risk layer (reads streams, no direct agent deps) ---
     risk_guardian = RiskGuardian(bus=bus)

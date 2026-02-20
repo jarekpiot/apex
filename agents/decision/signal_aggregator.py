@@ -19,6 +19,7 @@ from typing import Any
 from agents.base_agent import BaseAgent
 from config.agent_registry import AGENT_REGISTRY
 from config.settings import settings
+from core.gamification import GamificationEngine
 from core.message_bus import (
     MessageBus,
     STREAM_CIO_SIGNAL_MATRIX,
@@ -83,7 +84,7 @@ class SignalMatrixSnapshot(BaseModel):
 class SignalAggregator(BaseAgent):
     """Maintains a real-time signal matrix and publishes to the CIO."""
 
-    def __init__(self, bus: MessageBus, **kw: Any) -> None:
+    def __init__(self, bus: MessageBus, gamification: GamificationEngine | None = None, **kw: Any) -> None:
         super().__init__(
             agent_id="signal_aggregator",
             agent_type="decision",
@@ -97,6 +98,7 @@ class SignalAggregator(BaseAgent):
         self._portfolio = PortfolioState()
         self._mid_prices: dict[str, float] = {}
         self._recent_anomalies: list[AnomalyAlert] = []
+        self._gamification = gamification
         self._sub_tasks: list[asyncio.Task[None]] = []
 
     async def start(self) -> None:
@@ -148,11 +150,31 @@ class SignalAggregator(BaseAgent):
                 del self._signals[asset]
 
     def _compile_matrix(self, now: datetime) -> SignalMatrixSnapshot:
-        """Build the full matrix snapshot."""
+        """Build the full matrix snapshot with rank-weighted signals."""
         assets: dict[str, AssetMatrix] = {}
 
         for asset, buf in self._signals.items():
-            entries = list(buf.values())
+            entries: list[AssetSignalEntry] = []
+            for e in buf.values():
+                # Apply gamification rank weighting.
+                if self._gamification is not None:
+                    if self._gamification.is_benched(e.agent_id):
+                        continue  # Skip benched agents entirely.
+                    mult = self._gamification.get_weight_multiplier(e.agent_id)
+                    cap = self._gamification.get_conviction_cap(e.agent_id)
+                    # Create adjusted entry (don't mutate original).
+                    adj_conviction = min(e.conviction * mult, cap)
+                    e = AssetSignalEntry(
+                        agent_id=e.agent_id,
+                        direction=e.direction,
+                        conviction=adj_conviction,
+                        timeframe=e.timeframe,
+                        reasoning=e.reasoning,
+                        timestamp=e.timestamp,
+                        expires_at=e.expires_at,
+                    )
+                entries.append(e)
+
             if not entries:
                 continue
 

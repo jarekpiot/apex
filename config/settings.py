@@ -320,6 +320,14 @@ class Settings(BaseSettings):
     dashboard_host: str = Field(default="0.0.0.0", description="Dashboard bind host.")
     dashboard_port: int = Field(default=8000, description="Dashboard bind port.")
 
+    # -- Gamification ---------------------------------------------------------
+    gamification_enabled: bool = Field(default=True, description="Enable agent gamification system.")
+    gamification_persist_interval: int = Field(default=300, description="Persist profiles to DB every N seconds.")
+
+    # -- Decision Journal -----------------------------------------------------
+    journal_enabled: bool = Field(default=True, description="Enable CIO decision journal.")
+    journal_lesson_generation: bool = Field(default=True, description="Generate lessons via Claude after trade closes.")
+
     # -- Platform polling intervals (seconds) ---------------------------------
     account_health_interval: float = 10.0
     asset_registry_interval: float = 300.0

@@ -43,6 +43,8 @@ from typing import Any
 from agents.base_agent import BaseAgent
 from config.settings import settings
 from core.database import ICRecordRow, DailySummaryRow, async_session_factory
+from core.decision_journal import DecisionJournal, DecisionJournalEntry
+from core.gamification import GamificationEngine
 from core.message_bus import (
     MessageBus,
     STREAM_CIO_PRIORITIES,
@@ -106,6 +108,8 @@ class ChiefInvestmentOfficer(BaseAgent):
         bus: MessageBus,
         red_team: Any = None,
         allocator: Any = None,
+        gamification: GamificationEngine | None = None,
+        journal: DecisionJournal | None = None,
         **kw: Any,
     ) -> None:
         super().__init__(
@@ -116,6 +120,8 @@ class ChiefInvestmentOfficer(BaseAgent):
         )
         self._red_team = red_team          # RedTeamStrategist instance.
         self._allocator = allocator        # PortfolioAllocator instance.
+        self._gamification = gamification  # Agent ranking system.
+        self._journal = journal or DecisionJournal()
         self._client: Any = None           # anthropic.AsyncAnthropic
 
         # State.
@@ -208,6 +214,8 @@ class ChiefInvestmentOfficer(BaseAgent):
             return self._heuristic_brief()
 
         matrix_summary = self._summarise_matrix()
+        journal_context = self._journal.build_cio_context(self._regime)
+        agent_trust = self._build_agent_trust_context()
         prompt = (
             f"Generate a market brief from this signal matrix:\n\n"
             f"{matrix_summary}\n\n"
@@ -215,6 +223,8 @@ class ChiefInvestmentOfficer(BaseAgent):
             f"Portfolio: {len(self._portfolio.positions)} positions, "
             f"NAV={self._portfolio.total_nav:.0f}, "
             f"drawdown={self._portfolio.drawdown:.2%}\n\n"
+            f"{journal_context}\n\n"
+            f"{agent_trust}\n\n"
             f"Respond with JSON:\n"
             f'{{"themes": ["..."], "opportunities": [{{"asset": "...", "direction": "long/short", '
             f'"conviction": 0.0-1.0, "reasoning": "..."}}], '
@@ -449,6 +459,28 @@ class ChiefInvestmentOfficer(BaseAgent):
         if len(self._ic_records) > 100:
             self._ic_records = self._ic_records[-100:]
 
+        # Record to decision journal.
+        if thesis and self._journal:
+            top_agents = [
+                e.agent_id for e in sorted(experts, key=lambda x: x.conviction, reverse=True)[:3]
+            ]
+            rt_summary = ""
+            if rt_challenge:
+                rt_summary = f"{rt_challenge.category}: {rt_challenge.challenge_text[:200]}"
+
+            journal_entry = DecisionJournalEntry(
+                asset=thesis.asset,
+                direction=thesis.direction,
+                thesis_summary=thesis.edge_description[:500],
+                conviction=thesis.conviction,
+                regime=self._regime,
+                signal_matrix_snapshot=self._signal_matrix.get("assets", {}).get(thesis.asset, {}),
+                top_signals=top_agents,
+                red_team_challenge_summary=rt_summary,
+                ic_debate_quality=self._debate_quality_label(experts, rt_challenge),
+            )
+            self._journal.record_decision(journal_entry)
+
     async def _gather_expert_opinions(
         self, thesis: InvestmentThesis,
     ) -> list[ExpertOpinion]:
@@ -462,12 +494,19 @@ class ChiefInvestmentOfficer(BaseAgent):
         if isinstance(asset_data, dict):
             for sig in asset_data.get("signals", []):
                 if isinstance(sig, dict):
+                    agent_id = sig.get("agent_id", "unknown")
                     direction = sig.get("direction", 0)
                     supports = (direction > 0 and thesis.direction == Direction.LONG) or \
                                (direction < 0 and thesis.direction == Direction.SHORT)
+
+                    # Enrich role with gamification rank.
+                    rank_info = ""
+                    if self._gamification:
+                        rank_info = self._gamification.get_rank_display(agent_id)
+
                     opinions.append(ExpertOpinion(
-                        agent_id=sig.get("agent_id", "unknown"),
-                        role=sig.get("agent_id", "analyst"),
+                        agent_id=agent_id,
+                        role=f"{agent_id} {rank_info}".strip(),
                         assessment=sig.get("reasoning", "Signal-based assessment"),
                         conviction=sig.get("conviction", 0.5),
                         supports_thesis=supports,
@@ -556,7 +595,7 @@ class ChiefInvestmentOfficer(BaseAgent):
     ) -> tuple[ICDecision, str]:
         """Use Claude for the CIO's deliberation."""
         expert_summary = "\n".join(
-            f"  - {e.agent_id}: {'SUPPORTS' if e.supports_thesis else 'OPPOSES'} "
+            f"  - {e.role}: {'SUPPORTS' if e.supports_thesis else 'OPPOSES'} "
             f"(conv={e.conviction:.2f}) — {e.assessment[:100]}"
             for e in experts
         )
@@ -568,6 +607,12 @@ class ChiefInvestmentOfficer(BaseAgent):
                 f"  Recommendation: {rt_challenge.recommendation}\n"
             )
 
+        # Add journal context and agent trust.
+        journal_context = self._journal.build_cio_context(
+            self._regime, target_asset=thesis.asset,
+        )
+        agent_trust = self._build_agent_trust_context()
+
         prompt = (
             f"IC Deliberation for {thesis.direction.upper()} {thesis.asset}:\n\n"
             f"Thesis: {thesis.edge_description}\n"
@@ -578,7 +623,11 @@ class ChiefInvestmentOfficer(BaseAgent):
             f"Portfolio: drawdown={self._portfolio.drawdown:.2%}, "
             f"positions={len(self._portfolio.positions)}\n"
             f"Regime: {self._regime}\n\n"
-            f"IMPORTANT: You CANNOT override Risk Guardian or Platform Specialist.\n\n"
+            f"{journal_context}\n\n"
+            f"{agent_trust}\n\n"
+            f"IMPORTANT: You CANNOT override Risk Guardian or Platform Specialist.\n"
+            f"Weight Partner and Principal agents heavily. Be skeptical of Intern/Junior "
+            f"signals unless corroborated by higher-ranked agents.\n\n"
             f'Respond with JSON: {{"decision": "approve|reject|reduce|defer", "reasoning": "..."}}'
         )
 
@@ -800,6 +849,55 @@ class ChiefInvestmentOfficer(BaseAgent):
             score += 0.3  # Red Team participated.
             score += 0.2 * rt_challenge.confidence
         return min(score, 1.0)
+
+    def _build_agent_trust_context(self) -> str:
+        """Build a trust context block from gamification rankings."""
+        if self._gamification is None:
+            return ""
+        leaderboard = self._gamification.get_leaderboard()
+        if not leaderboard:
+            return ""
+        lines = ["AGENT TRUST LEVELS:"]
+        for p in leaderboard[:15]:
+            total = p.signals_30d
+            wr = p.wins_30d / total * 100 if total > 0 else 0
+            status = ""
+            if p.on_probation:
+                status = " (PROBATION)"
+            elif p.benched:
+                status = " (BENCHED)"
+            spec = ""
+            if p.best_regime:
+                spec = f" best_regime={p.best_regime}"
+            if p.best_asset_class:
+                spec += f" best_class={p.best_asset_class}"
+            lines.append(
+                f"  {p.agent_id}: {p.rank.upper()} L{p.level} "
+                f"({p.signal_weight_multiplier:.1f}x weight) "
+                f"WR={wr:.0f}% streak={p.current_win_streak}W/{p.current_loss_streak}L"
+                f"{status}{spec}"
+            )
+        return "\n".join(lines)
+
+    def _debate_quality_label(
+        self,
+        experts: list[ExpertOpinion],
+        rt_challenge: RedTeamChallengeV2 | None,
+    ) -> str:
+        """Human-readable label for IC debate quality."""
+        if not experts:
+            return "no_experts"
+        all_support = all(e.supports_thesis for e in experts)
+        all_oppose = all(not e.supports_thesis for e in experts)
+        if all_support:
+            return "unanimous"
+        if all_oppose:
+            return "unanimous_against"
+        support = sum(1 for e in experts if e.supports_thesis)
+        oppose = len(experts) - support
+        if abs(support - oppose) <= 1:
+            return "split"
+        return "contentious"
 
     def _summarise_matrix(self) -> str:
         """Summarise signal matrix for LLM prompt."""

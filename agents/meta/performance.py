@@ -25,8 +25,10 @@ from agents.base_agent import BaseAgent
 from config.agent_registry import AGENT_REGISTRY, voting_agents
 from config.settings import settings
 from core.database import AgentWeightRow, PerformanceMetricRow, async_session_factory
+from core.gamification import GamificationEngine, SignalOutcome
 from core.message_bus import (
     MessageBus,
+    STREAM_AGENT_RANKINGS,
     STREAM_DECISIONS_APPROVED,
     STREAM_DECISIONS_REJECTED,
     STREAM_MARKET_PRICES,
@@ -37,6 +39,7 @@ from core.message_bus import (
 )
 from core.models import (
     AgentPerformanceReport,
+    AgentRankingSnapshot,
     AgentSignal,
     ExecutedTrade,
     PriceUpdate,
@@ -134,6 +137,9 @@ class PerformanceAuditor(BaseAgent):
         # Decision tracking: decision_id → contributing agent_ids.
         self._decision_agents: dict[str, list[str]] = {}
 
+        # Signal cache: signal_id → AgentSignal (for gamification outcome).
+        self._signal_cache: dict[str, AgentSignal] = {}
+
         # Signal counting per agent.
         self._signal_counts: dict[str, int] = defaultdict(int)
 
@@ -148,6 +154,9 @@ class PerformanceAuditor(BaseAgent):
         self._current_weights: dict[str, float] = {
             e.agent_id: e.default_weight for e in voting_agents()
         }
+
+        # Gamification engine.
+        self.gamification = GamificationEngine()
 
         self._sub_tasks: list[asyncio.Task[None]] = []
 
@@ -185,6 +194,13 @@ class PerformanceAuditor(BaseAgent):
             try:
                 signal = AgentSignal.model_validate(payload)
                 self._signal_counts[signal.agent_id] += 1
+                # Cache for gamification outcome recording.
+                self._signal_cache[signal.signal_id] = signal
+                # Cap cache size.
+                if len(self._signal_cache) > 5000:
+                    oldest = sorted(self._signal_cache.keys())[:1000]
+                    for k in oldest:
+                        del self._signal_cache[k]
             except Exception:
                 self.log.exception("Error ingesting signal for counting.")
 
@@ -286,6 +302,23 @@ class PerformanceAuditor(BaseAgent):
             rec.is_closed = True
             self._closed_trades.append(rec)
             del self._open_trades[tid]
+
+            # Feed gamification: record outcome for contributing agents.
+            correct = rec.pnl_bps > 0
+            actual_move = rec.pnl_bps / 100.0  # bps → percent
+            primary = rec.contributing_agents[0] if rec.contributing_agents else ""
+            for aid in rec.contributing_agents:
+                outcome = SignalOutcome(
+                    signal_id=rec.trade_id,
+                    agent_id=aid,
+                    asset=rec.asset,
+                    predicted_direction=1.0 if rec.side in ("buy", "long") else -1.0,
+                    actual_move_pct=actual_move,
+                    correct=correct,
+                    was_primary_driver=(aid == primary),
+                    pnl_contribution=rec.pnl_bps,
+                )
+                self.gamification.record_outcome(outcome)
 
         # Build per-agent stats from closed trades.
         agent_stats: dict[str, _AgentStats] = defaultdict(_AgentStats)
@@ -435,6 +468,37 @@ class PerformanceAuditor(BaseAgent):
         self._current_weights = new_weights
         self.log.info("Dynamic weights updated: %d agents.", len(new_weights))
 
+        # Feed Sharpe ratios to gamification engine for rank checks.
+        for aid, stats in agent_stats.items():
+            self.gamification.set_sharpe(aid, stats.sharpe_ratio)
+
+        # Publish agent rankings.
+        await self._publish_rankings()
+
+    async def _publish_rankings(self) -> None:
+        """Publish current agent rankings to the rankings stream."""
+        leaderboard = self.gamification.get_leaderboard()
+        rankings = []
+        for p in leaderboard:
+            total = p.signals_30d
+            wr = p.wins_30d / total if total > 0 else 0.0
+            rankings.append({
+                "agent_id": p.agent_id,
+                "rank": p.rank,
+                "xp": p.xp,
+                "level": p.level,
+                "win_streak": p.current_win_streak,
+                "loss_streak": p.current_loss_streak,
+                "win_rate": round(wr, 4),
+                "multiplier": p.signal_weight_multiplier,
+                "on_probation": p.on_probation,
+                "benched": p.benched,
+                "best_regime": p.best_regime,
+                "best_asset_class": p.best_asset_class,
+            })
+        snapshot = AgentRankingSnapshot(rankings=rankings)
+        await self.bus.publish_to(STREAM_AGENT_RANKINGS, snapshot)
+
     # -- health --------------------------------------------------------------
 
     def health(self) -> dict[str, Any]:
@@ -446,5 +510,6 @@ class PerformanceAuditor(BaseAgent):
             "approvals": self._approvals,
             "rejections": self._rejections,
             "current_weights": dict(self._current_weights),
+            "gamification_profiles": len(self.gamification.profiles),
         })
         return base
